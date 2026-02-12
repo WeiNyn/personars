@@ -63,7 +63,7 @@ impl Tool for RegexTester {
                             ui.painter().layout_job(layout_job)
                         };
 
-                    ui.add(
+                    let response = ui.add(
                         egui::TextEdit::multiline(&mut self.test_text)
                             .hint_text("Type items here to test...")
                             .desired_width(f32::INFINITY)
@@ -71,9 +71,49 @@ impl Tool for RegexTester {
                             .layouter(&mut layouter),
                     );
 
+                    let mut cursor_idx = None;
+                    if let Some(state) = egui::TextEdit::load_state(ui.ctx(), response.id) {
+                        if let Some(cursor_range) = state.cursor.char_range() {
+                            cursor_idx = Some(cursor_range.primary.index);
+                        }
+                    }
+
                     if let Some(re) = &self.compiled_regex {
                         let count = re.find_iter(&self.test_text).count();
                         ui.label(format!("Found {} matches", count));
+
+                        ui.separator();
+
+                        if let Some(idx) = cursor_idx {
+                            // Find match at cursor
+                            for cap in re.captures_iter(&self.test_text) {
+                                if let Some(m) = cap.get(0) {
+                                    // Check if cursor is roughly within this match or on the same line?
+                                    // User said "cursor on line that has matches", but "print matched group".
+                                    // Identifying if cursor is "at" the match is more precise.
+                                    // Let's verify if cursor index is within [start, end].
+                                    if idx >= m.start() && idx <= m.end() {
+                                        ui.label(egui::RichText::new("Match Details:").strong());
+                                        ui.label(format!("Full Match: {:?}", m.as_str()));
+
+                                        for (i, grp) in cap.iter().enumerate().skip(1) {
+                                            if let Some(g) = grp {
+                                                ui.horizontal(|ui| {
+                                                    ui.label(format!("Group {}: ", i));
+                                                    ui.label(
+                                                        egui::RichText::new(g.as_str())
+                                                            .color(RegexTester::get_group_color(i)),
+                                                    );
+                                                });
+                                            }
+                                        }
+                                        break; // Stop after finding the first intersecting match
+                                    }
+                                }
+                            }
+                        } else {
+                            ui.label("Move cursor to a match to see details.");
+                        }
                     }
                 });
             });
@@ -98,6 +138,17 @@ impl RegexTester {
                 self.error = Some(format!("Error: {}", e));
             }
         }
+    }
+
+    fn get_group_color(index: usize) -> Color32 {
+        const GROUP_COLORS: &[Color32] = &[
+            Color32::from_rgb(100, 200, 255), // Blueish
+            Color32::from_rgb(100, 255, 100), // Greenish
+            Color32::from_rgb(255, 200, 100), // Orangeish
+            Color32::from_rgb(255, 100, 200), // Pinkish
+            Color32::from_rgb(200, 100, 255), // Purpleish
+        ];
+        GROUP_COLORS[(index - 1) % GROUP_COLORS.len()]
     }
 
     fn highlight(ui: &egui::Ui, text: &str, regex: &Option<Regex>) -> LayoutJob {
@@ -154,14 +205,6 @@ impl RegexTester {
             // Simpler: Just alternating colors for full matches is a very good "Regex 101" style baseline.
             // User asked: "different color highlight on each matched group".
             // Okay, I will define a palette for groups.
-
-            const GROUP_COLORS: &[Color32] = &[
-                Color32::from_rgb(100, 200, 255), // Blueish
-                Color32::from_rgb(100, 255, 100), // Greenish
-                Color32::from_rgb(255, 200, 100), // Orangeish
-                Color32::from_rgb(255, 100, 200), // Pinkish
-                Color32::from_rgb(200, 100, 255), // Purpleish
-            ];
 
             // We will construct a vector of (byte_index, type, color_idx) events?
             // No, simpler:
@@ -220,7 +263,7 @@ impl RegexTester {
                 // Capture groups (1..N)
                 for (i, grp) in cap.iter().enumerate().skip(1) {
                     if let Some(m) = grp {
-                        let color = GROUP_COLORS[(i - 1) % GROUP_COLORS.len()];
+                        let color = Self::get_group_color(i);
                         for k in m.start()..m.end() {
                             if k < styles.len() {
                                 styles[k].color = color;
