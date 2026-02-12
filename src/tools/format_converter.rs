@@ -61,8 +61,8 @@ impl Tool for FormatConverter {
     fn show(&mut self, ctx: &egui::Context, open: &mut bool, rect: egui::Rect) {
         egui::Window::new(self.name())
             .open(open)
-            .default_width(800.0)
-            .default_height(600.0)
+            .default_width(600.0)
+            .default_height(400.0)
             .vscroll(true)
             .resizable(true)
             .constrain_to(rect)
@@ -76,7 +76,7 @@ impl Tool for FormatConverter {
                     let row_height = ui.text_style_height(&egui::TextStyle::Monospace);
 
                     // Overhead: Label (~20) + Group Padding (~20).
-                    let overhead = 50.0;
+                    let overhead = 20.0;
                     let target_height = if raw_available > overhead {
                         raw_available - overhead
                     } else {
@@ -100,7 +100,7 @@ impl Tool for FormatConverter {
 impl FormatConverter {
     fn render_header(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
-            ui.heading("Format Converter");
+            ui.label("Format Converter");
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if ui.button("Clear All").clicked() {
                     self.json.clear();
