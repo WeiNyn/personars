@@ -35,6 +35,10 @@ impl Default for PersonarsApp {
                     tool: Box::new(tools::jwt_debugger::JwtDebugger::default()),
                     open: false,
                 },
+                ToolState {
+                    tool: Box::new(tools::uuid_generator::UuidGenerator::default()),
+                    open: false,
+                },
             ],
         }
     }
@@ -64,6 +68,10 @@ impl PersonarsApp {
                 },
                 ToolState {
                     tool: Box::new(tools::jwt_debugger::JwtDebugger::default()),
+                    open: false,
+                },
+                ToolState {
+                    tool: Box::new(tools::uuid_generator::UuidGenerator::default()),
                     open: false,
                 },
             ];
