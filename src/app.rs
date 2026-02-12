@@ -31,6 +31,10 @@ impl Default for PersonarsApp {
                     tool: Box::new(tools::base64_converter::Base64Converter::default()),
                     open: false,
                 },
+                ToolState {
+                    tool: Box::new(tools::jwt_debugger::JwtDebugger::default()),
+                    open: false,
+                },
             ],
         }
     }
@@ -56,6 +60,10 @@ impl PersonarsApp {
                 },
                 ToolState {
                     tool: Box::new(tools::base64_converter::Base64Converter::default()),
+                    open: false,
+                },
+                ToolState {
+                    tool: Box::new(tools::jwt_debugger::JwtDebugger::default()),
                     open: false,
                 },
             ];
