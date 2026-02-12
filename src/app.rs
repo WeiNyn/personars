@@ -27,6 +27,10 @@ impl Default for PersonarsApp {
                     tool: Box::new(tools::epoch_converter::EpochConverter::default()),
                     open: false,
                 },
+                ToolState {
+                    tool: Box::new(tools::base64_converter::Base64Converter::default()),
+                    open: false,
+                },
             ],
         }
     }
@@ -48,6 +52,10 @@ impl PersonarsApp {
                 },
                 ToolState {
                     tool: Box::new(tools::epoch_converter::EpochConverter::default()),
+                    open: false,
+                },
+                ToolState {
+                    tool: Box::new(tools::base64_converter::Base64Converter::default()),
                     open: false,
                 },
             ];
