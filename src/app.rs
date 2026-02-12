@@ -51,6 +51,10 @@ impl Default for PersonarsApp {
                     tool: Box::new(tools::regex_tester::RegexTester::default()),
                     open: false,
                 },
+                ToolState {
+                    tool: Box::new(tools::qr_code_generator::QrCodeGenerator::default()),
+                    open: false,
+                },
             ],
         }
     }
@@ -68,8 +72,7 @@ impl PersonarsApp {
         cc.egui_ctx.set_fonts(fonts);
 
         if let Some(storage) = cc.storage {
-            let mut app: Self =
-                eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
+            let mut app: Self = eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
             // Re-initialize tools since they are skipped in serde
             app.tools = vec![
                 ToolState {
@@ -102,6 +105,10 @@ impl PersonarsApp {
                 },
                 ToolState {
                     tool: Box::new(tools::regex_tester::RegexTester::default()),
+                    open: false,
+                },
+                ToolState {
+                    tool: Box::new(tools::qr_code_generator::QrCodeGenerator::default()),
                     open: false,
                 },
             ];
