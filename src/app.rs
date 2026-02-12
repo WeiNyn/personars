@@ -43,6 +43,10 @@ impl Default for PersonarsApp {
                     tool: Box::new(tools::hash_generator::HashGenerator::default()),
                     open: false,
                 },
+                ToolState {
+                    tool: Box::new(tools::password_generator::PasswordGenerator::default()),
+                    open: false,
+                },
             ],
         }
     }
@@ -80,6 +84,10 @@ impl PersonarsApp {
                 },
                 ToolState {
                     tool: Box::new(tools::hash_generator::HashGenerator::default()),
+                    open: false,
+                },
+                ToolState {
+                    tool: Box::new(tools::password_generator::PasswordGenerator::default()),
                     open: false,
                 },
             ];

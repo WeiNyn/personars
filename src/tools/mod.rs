@@ -10,4 +10,5 @@ pub mod epoch_converter;
 pub mod format_converter;
 pub mod hash_generator;
 pub mod jwt_debugger;
+pub mod password_generator;
 pub mod uuid_generator;
