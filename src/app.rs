@@ -59,6 +59,10 @@ impl Default for PersonarsApp {
                     tool: Box::new(tools::diff_viewer::DiffViewer::default()),
                     open: false,
                 },
+                ToolState {
+                    tool: Box::new(tools::todo_list::TodoList::default()),
+                    open: false,
+                },
             ],
         }
     }
@@ -117,6 +121,10 @@ impl PersonarsApp {
                 },
                 ToolState {
                     tool: Box::new(tools::diff_viewer::DiffViewer::default()),
+                    open: false,
+                },
+                ToolState {
+                    tool: Box::new(tools::todo_list::TodoList::default()),
                     open: false,
                 },
             ];

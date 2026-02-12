@@ -15,4 +15,5 @@ pub mod jwt_debugger;
 pub mod password_generator;
 pub mod qr_code_generator;
 pub mod regex_tester;
+pub mod todo_list;
 pub mod uuid_generator;
