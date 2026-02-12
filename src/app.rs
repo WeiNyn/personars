@@ -61,6 +61,12 @@ impl PersonarsApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         // Load previous app state (if any).
         // Note that you must enable the `persistence` feature for this to work.
+        // Initialize Phosphor Icons
+        let mut fonts = egui::FontDefinitions::default();
+        egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
+
+        cc.egui_ctx.set_fonts(fonts);
+
         if let Some(storage) = cc.storage {
             let mut app: PersonarsApp =
                 eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
@@ -121,41 +127,118 @@ impl eframe::App for PersonarsApp {
             });
         });
 
-        egui::SidePanel::left("side_panel").show(ctx, |ui| {
-            ui.heading("Tools");
-            ui.separator();
+        // Sidebar
+        egui::SidePanel::left("side_panel")
+            .resizable(true)
+            .default_width(220.0)
+            .width_range(60.0..=300.0)
+            .show(ctx, |ui| {
+                ui.add_space(10.0);
 
-            for tool_state in &mut self.tools {
-                if ui
-                    .add_sized(
-                        [ui.available_width(), 0.0],
-                        egui::Button::new(tool_state.tool.name()).selected(tool_state.open),
-                    )
-                    .clicked()
-                {
-                    tool_state.open = !tool_state.open;
-                }
-            }
-        });
+                let collapsed = ui.available_width() < 100.0;
+
+                ui.vertical_centered(|ui| {
+                    if collapsed {
+                        ui.heading("⚒");
+                    } else {
+                        ui.heading("Tools");
+                    }
+                });
+
+                ui.separator();
+                ui.add_space(5.0);
+
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    for tool_state in &mut self.tools {
+                        let icon = tool_state.tool.icon_name();
+                        let name = tool_state.tool.name();
+
+                        let text = if collapsed {
+                            egui::RichText::new(icon).size(20.0)
+                        } else {
+                            egui::RichText::new(format!("{}  {}", icon, name)).size(16.0)
+                        };
+
+                        let btn = egui::Button::new(text)
+                            .selected(tool_state.open)
+                            .min_size(egui::vec2(0.0, 32.0)); // Taller buttons
+
+                        if ui.add_sized([ui.available_width(), 32.0], btn).clicked() {
+                            tool_state.open = !tool_state.open;
+                        }
+
+                        ui.add_space(4.0);
+                    }
+                });
+
+                ui.with_layout(egui::Layout::bottom_up(egui::Align::Center), |ui| {
+                    ui.add_space(10.0);
+                    let close_text = if collapsed { "❌" } else { "❌ Close All" };
+                    if ui.button(close_text).clicked() {
+                        for t in &mut self.tools {
+                            t.open = false;
+                        }
+                    }
+                    ui.separator();
+                });
+            });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("Active Tools Workspace");
-            ui.label("Open tools from the sidebar to see them as windows.");
-            ui.separator();
-
-            // Render all open tools as windows
-            // The windows themselves manage their position/size within the Context (relative to screen)
-            // But we call them here. Note that show() adds windows to the context.
-            // We don't strictly need to be inside CentralPanel for windows, but it's fine.
-            // Actually, windows are usually added to Context directly.
-            // If we put them in CentralPanel, they might be constrained?
-            // Regular usage: Window::new(...).show(ctx, ...)
-            // We moved ctx usage into Tool::show, so just need to call it.
-
             let central_rect = ui.available_rect_before_wrap();
 
-            // Render tool windows outside of CentralPanel to allow them to float freely?
-            // Actually, windows are independent of panels usually.
+            // Check if any tools are open
+            let any_open = self.tools.iter().any(|t| t.open);
+
+            if !any_open {
+                // Dashboard / Welcome View
+                ui.vertical_centered(|ui| {
+                    ui.add_space(50.0);
+                    ui.heading(egui::RichText::new("Welcome to Personars").size(32.0));
+                    ui.label(egui::RichText::new("Select a tool to get started").size(18.0));
+                    ui.add_space(40.0);
+
+                    // Grid of tools
+                    // Use a wrapping Horizontal layout or Grid?
+                    // Grid needs explicit rows.
+                    // Let's use `ui.horizontal_wrapped` effectively by manually breaking rows or using `egui::Grid`.
+                    // Since we want a nice card grid, `Grid` is stable.
+
+                    egui::ScrollArea::vertical().show(ui, |ui| {
+                        egui::Grid::new("dashboard_grid")
+                            .spacing([20.0, 20.0])
+                            .show(ui, |ui| {
+                                // We need to iterate and manage row breaks
+                                // But we can't iterate safely if we break rows inside the loop easily with `enumerate` check.
+                                // Actually we can.
+
+                                for (i, tool_state) in self.tools.iter_mut().enumerate() {
+                                    let icon = tool_state.tool.icon_name();
+                                    let name = tool_state.tool.name();
+
+                                    ui.vertical(|ui| {
+                                        // Big Card Button
+                                        let btn = egui::Button::new(
+                                            egui::RichText::new(format!("{}\n\n{}", icon, name))
+                                                .size(18.0)
+                                                .heading(),
+                                        )
+                                        .min_size(egui::vec2(160.0, 120.0));
+
+                                        if ui.add(btn).clicked() {
+                                            tool_state.open = true;
+                                        }
+                                    });
+
+                                    if (i + 1) % 4 == 0 {
+                                        ui.end_row();
+                                    }
+                                }
+                            });
+                    });
+                });
+            }
+
+            // Render tool windows
             for tool_state in &mut self.tools {
                 if tool_state.open {
                     tool_state

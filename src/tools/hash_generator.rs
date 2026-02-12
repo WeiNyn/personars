@@ -18,6 +18,10 @@ impl Tool for HashGenerator {
         "Hash Generator"
     }
 
+    fn icon_name(&self) -> &'static str {
+        egui_phosphor::regular::FINGERPRINT
+    }
+
     fn show(&mut self, ctx: &egui::Context, open: &mut bool, rect: egui::Rect) {
         egui::Window::new(self.name())
             .open(open)

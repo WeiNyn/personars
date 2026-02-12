@@ -16,6 +16,10 @@ impl Tool for JwtDebugger {
         "JWT Debugger"
     }
 
+    fn icon_name(&self) -> &'static str {
+        egui_phosphor::regular::SHIELD_CHECK
+    }
+
     fn show(&mut self, ctx: &egui::Context, open: &mut bool, rect: egui::Rect) {
         egui::Window::new(self.name())
             .open(open)

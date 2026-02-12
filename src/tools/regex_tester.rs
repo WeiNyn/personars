@@ -25,6 +25,10 @@ impl Tool for RegexTester {
         "Regex Tester"
     }
 
+    fn icon_name(&self) -> &'static str {
+        egui_phosphor::regular::MAGNIFYING_GLASS
+    }
+
     fn show(&mut self, ctx: &egui::Context, open: &mut bool, rect: egui::Rect) {
         egui::Window::new(self.name())
             .open(open)
