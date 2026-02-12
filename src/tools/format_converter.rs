@@ -287,7 +287,7 @@ impl FormatConverter {
                 Format::Json => self.json = serde_json::to_string_pretty(&val).unwrap_or_default(),
                 Format::Yaml => self.yaml = serde_yaml::to_string(&val).unwrap_or_default(),
                 Format::Toml => self.toml = toml::to_string(&val).unwrap_or_default(),
-            };
+            }
         }
     }
 }

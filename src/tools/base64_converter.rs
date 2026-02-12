@@ -123,7 +123,7 @@ impl Base64Converter {
                 }
             },
             Err(e) => {
-                self.error = Some(format!("Decode Error: {}", e));
+                self.error = Some(format!("Decode Error: {e}"));
             }
         }
     }

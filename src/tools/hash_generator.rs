@@ -2,7 +2,7 @@ use super::Tool;
 use eframe::egui;
 use md5::Md5;
 use sha1::Sha1;
-use sha2::{Digest, Sha256, Sha512};
+use sha2::{Digest as _, Sha256, Sha512};
 
 #[derive(Default)]
 pub struct HashGenerator {
@@ -59,10 +59,10 @@ impl Tool for HashGenerator {
                     ui.add_space(5.0);
 
                     egui::ScrollArea::vertical().show(ui, |ui| {
-                        self.render_hash_row(ui, "MD5", &self.md5);
-                        self.render_hash_row(ui, "SHA-1", &self.sha1);
-                        self.render_hash_row(ui, "SHA-256", &self.sha256);
-                        self.render_hash_row(ui, "SHA-512", &self.sha512);
+                        Self::render_hash_row(ui, "MD5", &self.md5);
+                        Self::render_hash_row(ui, "SHA-1", &self.sha1);
+                        Self::render_hash_row(ui, "SHA-256", &self.sha256);
+                        Self::render_hash_row(ui, "SHA-512", &self.sha512);
                     });
                 });
             });
@@ -102,7 +102,7 @@ impl HashGenerator {
         self.sha512 = hex::encode(hasher.finalize());
     }
 
-    fn render_hash_row(&self, ui: &mut egui::Ui, label: &str, hash: &str) {
+    fn render_hash_row(ui: &mut egui::Ui, label: &str, hash: &str) {
         ui.group(|ui| {
             ui.horizontal(|ui| {
                 ui.label(agui_strong_label(label)); // Helper or just strong text

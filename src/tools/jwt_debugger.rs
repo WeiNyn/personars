@@ -111,19 +111,18 @@ impl JwtDebugger {
         }
 
         let parts: Vec<&str> = self.input_token.trim().split('.').collect();
-        if parts.len() != 3 {
+        if let [header, payload, signature] = parts.as_slice() {
+            self.error = None;
+            self.header_json = Self::decode_part(header);
+            self.payload_json = Self::decode_part(payload);
+            self.signature = (*signature).to_owned();
+        } else {
             self.error =
                 Some("Invalid JWT format (must have 3 parts separated by dots)".to_owned());
-            return;
         }
-
-        self.error = None;
-        self.header_json = self.decode_part(parts[0]);
-        self.payload_json = self.decode_part(parts[1]);
-        self.signature = parts[2].to_owned();
     }
 
-    fn decode_part(&self, part: &str) -> String {
+    fn decode_part(part: &str) -> String {
         // JWT uses Base64Url (no padding usually, or sometimes padding)
         // We try strictly first, then loose
         let engine = general_purpose::URL_SAFE_NO_PAD;
@@ -141,7 +140,7 @@ impl JwtDebugger {
                     "Error: Invalid UTF-8".to_owned()
                 }
             }
-            Err(e) => format!("Error decoding Base64: {}", e),
+            Err(e) => format!("Error decoding Base64: {e}"),
         }
     }
 }

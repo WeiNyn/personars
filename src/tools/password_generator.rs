@@ -1,6 +1,6 @@
 use super::Tool;
 use eframe::egui;
-use rand::RngExt;
+use rand::RngExt as _;
 
 pub struct PasswordGenerator {
     length: usize,
@@ -128,7 +128,7 @@ impl PasswordGenerator {
         let password: String = (0..self.length)
             .map(|_| {
                 let idx = rng.random_range(0..charset.len());
-                charset[idx] as char
+                *charset.get(idx).expect("charset is empty") as char
             })
             .collect();
 

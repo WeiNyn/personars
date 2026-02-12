@@ -68,7 +68,7 @@ impl PersonarsApp {
         cc.egui_ctx.set_fonts(fonts);
 
         if let Some(storage) = cc.storage {
-            let mut app: PersonarsApp =
+            let mut app: Self =
                 eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
             // Re-initialize tools since they are skipped in serde
             app.tools = vec![
@@ -140,7 +140,7 @@ impl PersonarsApp {
                         let text = if collapsed {
                             egui::RichText::new(icon).size(12.0)
                         } else {
-                            egui::RichText::new(format!("{}  {}", icon, name)).size(10.0)
+                            egui::RichText::new(format!("{icon}  {name}")).size(10.0)
                         };
 
                         let btn = egui::Button::new(text).selected(tool_state.open);
@@ -195,7 +195,7 @@ impl PersonarsApp {
 
                                 ui.vertical(|ui| {
                                     let btn = egui::Button::new(
-                                        egui::RichText::new(format!("{}\n\n{}", icon, name))
+                                        egui::RichText::new(format!("{icon}\n\n{name}"))
                                             .size(18.0)
                                             .heading(),
                                     )

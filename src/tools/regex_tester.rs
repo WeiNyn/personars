@@ -2,22 +2,12 @@ use super::Tool;
 use eframe::egui::{self, Color32, TextFormat, text::LayoutJob};
 use regex::Regex;
 
+#[derive(Default)]
 pub struct RegexTester {
     pattern: String,
     test_text: String,
     compiled_regex: Option<Regex>,
     error: Option<String>,
-}
-
-impl Default for RegexTester {
-    fn default() -> Self {
-        Self {
-            pattern: String::new(),
-            test_text: String::new(),
-            compiled_regex: None,
-            error: None,
-        }
-    }
 }
 
 impl Tool for RegexTester {
@@ -84,7 +74,7 @@ impl Tool for RegexTester {
 
                     if let Some(re) = &self.compiled_regex {
                         let count = re.find_iter(&self.test_text).count();
-                        ui.label(format!("Found {} matches", count));
+                        ui.label(format!("Found {count} matches"));
 
                         ui.separator();
 
@@ -103,10 +93,10 @@ impl Tool for RegexTester {
                                         for (i, grp) in cap.iter().enumerate().skip(1) {
                                             if let Some(g) = grp {
                                                 ui.horizontal(|ui| {
-                                                    ui.label(format!("Group {}: ", i));
+                                                    ui.label(format!("Group {i}: "));
                                                     ui.label(
                                                         egui::RichText::new(g.as_str())
-                                                            .color(RegexTester::get_group_color(i)),
+                                                            .color(Self::get_group_color(i)),
                                                     );
                                                 });
                                             }
@@ -139,11 +129,12 @@ impl RegexTester {
             }
             Err(e) => {
                 self.compiled_regex = None;
-                self.error = Some(format!("Error: {}", e));
+                self.error = Some(format!("Error: {e}"));
             }
         }
     }
 
+    #[expect(clippy::indexing_slicing)]
     fn get_group_color(index: usize) -> Color32 {
         const GROUP_COLORS: &[Color32] = &[
             Color32::from_rgb(100, 200, 255), // Blueish
@@ -155,6 +146,7 @@ impl RegexTester {
         GROUP_COLORS[(index - 1) % GROUP_COLORS.len()]
     }
 
+    #[expect(clippy::indexing_slicing)]
     fn highlight(ui: &egui::Ui, text: &str, regex: &Option<Regex>) -> LayoutJob {
         // Default text style
         let font_id = egui::TextStyle::Monospace.resolve(ui.style());
@@ -233,8 +225,8 @@ impl RegexTester {
             // Wait, for 10KB text this is array of 10k structs. That's fine (Rust is fast).
 
             // Reset to default
-            for i in 0..text.len() {
-                styles[i] = TextFormat {
+            for style in styles.iter_mut().take(text.len()) {
+                *style = TextFormat {
                     font_id: font_id.clone(),
                     color: if ui.visuals().dark_mode {
                         Color32::LIGHT_GRAY
