@@ -7,6 +7,7 @@ pub trait Tool {
 }
 
 pub mod base64_converter;
+pub mod diff_viewer;
 pub mod epoch_converter;
 pub mod format_converter;
 pub mod hash_generator;

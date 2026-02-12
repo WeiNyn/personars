@@ -55,6 +55,10 @@ impl Default for PersonarsApp {
                     tool: Box::new(tools::qr_code_generator::QrCodeGenerator::default()),
                     open: false,
                 },
+                ToolState {
+                    tool: Box::new(tools::diff_viewer::DiffViewer::default()),
+                    open: false,
+                },
             ],
         }
     }
@@ -109,6 +113,10 @@ impl PersonarsApp {
                 },
                 ToolState {
                     tool: Box::new(tools::qr_code_generator::QrCodeGenerator::default()),
+                    open: false,
+                },
+                ToolState {
+                    tool: Box::new(tools::diff_viewer::DiffViewer::default()),
                     open: false,
                 },
             ];
