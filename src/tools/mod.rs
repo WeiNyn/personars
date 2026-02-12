@@ -5,4 +5,5 @@ pub trait Tool {
     fn show(&mut self, ctx: &egui::Context, open: &mut bool, rect: egui::Rect);
 }
 
+pub mod epoch_converter;
 pub mod format_converter;

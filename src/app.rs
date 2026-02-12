@@ -18,10 +18,16 @@ pub struct PersonarsApp {
 impl Default for PersonarsApp {
     fn default() -> Self {
         Self {
-            tools: vec![ToolState {
-                tool: Box::new(tools::format_converter::FormatConverter::default()),
-                open: true, // Default open for the main tool?
-            }],
+            tools: vec![
+                ToolState {
+                    tool: Box::new(tools::format_converter::FormatConverter::default()),
+                    open: true,
+                },
+                ToolState {
+                    tool: Box::new(tools::epoch_converter::EpochConverter::default()),
+                    open: false,
+                },
+            ],
         }
     }
 }
@@ -35,10 +41,16 @@ impl PersonarsApp {
             let mut app: PersonarsApp =
                 eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
             // Re-initialize tools since they are skipped in serde
-            app.tools = vec![ToolState {
-                tool: Box::new(tools::format_converter::FormatConverter::default()),
-                open: true,
-            }];
+            app.tools = vec![
+                ToolState {
+                    tool: Box::new(tools::format_converter::FormatConverter::default()),
+                    open: true,
+                },
+                ToolState {
+                    tool: Box::new(tools::epoch_converter::EpochConverter::default()),
+                    open: false,
+                },
+            ];
             app
         } else {
             Default::default()
