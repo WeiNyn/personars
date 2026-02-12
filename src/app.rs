@@ -128,9 +128,9 @@ impl eframe::App for PersonarsApp {
         });
 
         // Sidebar
-        egui::SidePanel::left("side_panel")
+        egui::SidePanel::right("side_panel")
             .resizable(true)
-            .default_width(220.0)
+            .default_width(100.0)
             .width_range(60.0..=300.0)
             .show(ctx, |ui| {
                 ui.add_space(10.0);
@@ -139,9 +139,9 @@ impl eframe::App for PersonarsApp {
 
                 ui.vertical_centered(|ui| {
                     if collapsed {
-                        ui.heading("⚒");
+                        ui.label("⚒");
                     } else {
-                        ui.heading("Tools");
+                        ui.label("Tools");
                     }
                 });
 
@@ -154,9 +154,9 @@ impl eframe::App for PersonarsApp {
                         let name = tool_state.tool.name();
 
                         let text = if collapsed {
-                            egui::RichText::new(icon).size(20.0)
+                            egui::RichText::new(icon).size(12.0)
                         } else {
-                            egui::RichText::new(format!("{}  {}", icon, name)).size(16.0)
+                            egui::RichText::new(format!("{}  {}", icon, name)).size(10.0)
                         };
 
                         let btn = egui::Button::new(text).selected(tool_state.open);
@@ -200,38 +200,48 @@ impl eframe::App for PersonarsApp {
                     // Grid needs explicit rows.
                     // Let's use `ui.horizontal_wrapped` effectively by manually breaking rows or using `egui::Grid`.
                     // Since we want a nice card grid, `Grid` is stable.
+                    let item_width = 160.0;
+                    let spacing = 20.0;
+                    let available_width = ui.available_width();
+                    let max_columns =
+                        ((available_width + spacing) / (item_width + spacing)).floor() as usize;
+                    let max_columns = max_columns.max(1);
+
+                    let grid_width = max_columns as f32 * (item_width + spacing) - spacing;
+                    let margin_left = (available_width - grid_width) / 2.0;
 
                     egui::ScrollArea::vertical().show(ui, |ui| {
-                        egui::Grid::new("dashboard_grid")
-                            .spacing([20.0, 20.0])
-                            .show(ui, |ui| {
-                                // We need to iterate and manage row breaks
-                                // But we can't iterate safely if we break rows inside the loop easily with `enumerate` check.
-                                // Actually we can.
+                        ui.horizontal(|ui| {
+                            ui.add_space(margin_left.max(0.0));
+                            egui::Grid::new("dashboard_grid")
+                                .spacing([spacing, spacing])
+                                .show(ui, |ui| {
+                                    for (i, tool_state) in self.tools.iter_mut().enumerate() {
+                                        let icon = tool_state.tool.icon_name();
+                                        let name = tool_state.tool.name();
 
-                                for (i, tool_state) in self.tools.iter_mut().enumerate() {
-                                    let icon = tool_state.tool.icon_name();
-                                    let name = tool_state.tool.name();
-
-                                    ui.vertical(|ui| {
-                                        // Big Card Button
-                                        let btn = egui::Button::new(
-                                            egui::RichText::new(format!("{}\n\n{}", icon, name))
+                                        ui.vertical(|ui| {
+                                            let btn = egui::Button::new(
+                                                egui::RichText::new(format!(
+                                                    "{}\n\n{}",
+                                                    icon, name
+                                                ))
                                                 .size(18.0)
                                                 .heading(),
-                                        )
-                                        .min_size(egui::vec2(160.0, 120.0));
+                                            )
+                                            .min_size(egui::vec2(item_width, 120.0));
 
-                                        if ui.add(btn).clicked() {
-                                            tool_state.open = true;
+                                            if ui.add(btn).clicked() {
+                                                tool_state.open = true;
+                                            }
+                                        });
+
+                                        if (i + 1) % max_columns == 0 {
+                                            ui.end_row();
                                         }
-                                    });
-
-                                    if (i + 1) % 4 == 0 {
-                                        ui.end_row();
                                     }
-                                }
-                            });
+                                });
+                        });
                     });
                 });
             }
