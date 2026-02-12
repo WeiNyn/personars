@@ -102,7 +102,6 @@ impl Tool for UuidGenerator {
 
                     ui.add(
                         egui::TextEdit::multiline(&mut self.output)
-                            .interactive(false)
                             .desired_rows(10)
                             .desired_width(f32::INFINITY),
                     );

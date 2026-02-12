@@ -39,6 +39,10 @@ impl Default for PersonarsApp {
                     tool: Box::new(tools::uuid_generator::UuidGenerator::default()),
                     open: false,
                 },
+                ToolState {
+                    tool: Box::new(tools::hash_generator::HashGenerator::default()),
+                    open: false,
+                },
             ],
         }
     }
@@ -72,6 +76,10 @@ impl PersonarsApp {
                 },
                 ToolState {
                     tool: Box::new(tools::uuid_generator::UuidGenerator::default()),
+                    open: false,
+                },
+                ToolState {
+                    tool: Box::new(tools::hash_generator::HashGenerator::default()),
                     open: false,
                 },
             ];
