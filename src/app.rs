@@ -47,6 +47,10 @@ impl Default for PersonarsApp {
                     tool: Box::new(tools::password_generator::PasswordGenerator::default()),
                     open: false,
                 },
+                ToolState {
+                    tool: Box::new(tools::regex_tester::RegexTester::default()),
+                    open: false,
+                },
             ],
         }
     }
@@ -88,6 +92,10 @@ impl PersonarsApp {
                 },
                 ToolState {
                     tool: Box::new(tools::password_generator::PasswordGenerator::default()),
+                    open: false,
+                },
+                ToolState {
+                    tool: Box::new(tools::regex_tester::RegexTester::default()),
                     open: false,
                 },
             ];
