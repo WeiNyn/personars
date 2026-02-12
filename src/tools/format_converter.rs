@@ -16,9 +16,9 @@ enum Format {
 impl Format {
     fn name(&self) -> &'static str {
         match self {
-            Format::Json => "JSON",
-            Format::Yaml => "YAML",
-            Format::Toml => "TOML",
+            Self::Json => "JSON",
+            Self::Yaml => "YAML",
+            Self::Toml => "TOML",
         }
     }
 }
@@ -58,33 +58,42 @@ impl Tool for FormatConverter {
         "Format Converter"
     }
 
-    fn show(&mut self, _ctx: &egui::Context, ui: &mut egui::Ui) {
-        ui.vertical(|ui| {
-            self.render_header(ui);
-            // Calculate available height
-            // We are inside CentralPanel. ui.available_height() should give distance to bottom.
-            // We need to subtract space for the labels ("Input:"/"Output:") and group padding.
-            let raw_available = ui.available_height();
-            let row_height = ui.text_style_height(&egui::TextStyle::Monospace);
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool, rect: egui::Rect) {
+        egui::Window::new(self.name())
+            .open(open)
+            .default_width(800.0)
+            .default_height(600.0)
+            .vscroll(true)
+            .resizable(true)
+            .constrain_to(rect)
+            .show(ctx, |ui| {
+                ui.vertical(|ui| {
+                    self.render_header(ui);
 
-            // Overhead: Label (~20) + Group Padding (~20).
-            let overhead = 50.0;
-            let target_height = if raw_available > overhead {
-                raw_available - overhead
-            } else {
-                raw_available
-            };
-            let rows = max(10, (target_height / row_height).floor() as usize);
+                    // We are inside a Window now. ui.available_height() is relative to the window content area.
+                    // This is much cleaner!
+                    let raw_available = ui.available_height();
+                    let row_height = ui.text_style_height(&egui::TextStyle::Monospace);
 
-            // Main Content: 2-Pane Layout
-            ui.horizontal(|ui| {
-                let available_width = ui.available_width();
-                let pane_width = (available_width / 2.0) - 8.0; // Subtract spacing
+                    // Overhead: Label (~20) + Group Padding (~20).
+                    let overhead = 50.0;
+                    let target_height = if raw_available > overhead {
+                        raw_available - overhead
+                    } else {
+                        raw_available
+                    };
+                    let rows = max(10, (target_height / row_height).floor() as usize);
 
-                self.render_input_pane(ui, rows, pane_width, target_height);
-                self.render_output_pane(ui, rows, pane_width, target_height);
+                    // Main Content: 2-Pane Layout
+                    ui.horizontal(|ui| {
+                        let available_width = ui.available_width();
+                        let pane_width = (available_width / 2.0) - 8.0; // Subtract spacing
+
+                        self.render_input_pane(ui, rows, pane_width, target_height);
+                        self.render_output_pane(ui, rows, pane_width, target_height);
+                    });
+                });
             });
-        });
     }
 }
 
@@ -131,11 +140,17 @@ impl FormatConverter {
                     Format::Toml => &mut self.toml,
                 };
 
+                let theme = if ui.visuals().dark_mode {
+                    ColorTheme::GITHUB_DARK
+                } else {
+                    ColorTheme::GITHUB_LIGHT
+                };
+
                 let response = CodeEditor::default()
                     .id_source("input_editor")
                     .with_rows(rows)
                     .with_fontsize(13.0)
-                    .with_theme(ColorTheme::AYU_DARK)
+                    .with_theme(theme)
                     .auto_shrink(false)
                     .show(ui, current_text);
 
@@ -170,7 +185,7 @@ impl FormatConverter {
                             Format::Toml => &self.toml,
                         };
                         ui.output_mut(|o| {
-                            o.commands.push(egui::OutputCommand::CopyText(text.clone()))
+                            o.commands.push(egui::OutputCommand::CopyText(text.clone()));
                         });
                     }
                 });
@@ -185,11 +200,17 @@ impl FormatConverter {
                         Format::Toml => &mut self.toml,
                     };
 
+                    let theme = if ui.visuals().dark_mode {
+                        ColorTheme::GITHUB_DARK
+                    } else {
+                        ColorTheme::GITHUB_LIGHT
+                    };
+
                     CodeEditor::default()
                         .id_source("output_editor")
                         .with_rows(rows)
                         .with_fontsize(13.0)
-                        .with_theme(ColorTheme::AYU_DARK)
+                        .with_theme(theme)
                         .auto_shrink(false)
                         .show(ui, current_text);
                 }
@@ -232,7 +253,7 @@ impl FormatConverter {
                 }
             }
             Err(e) => {
-                self.error = Some(format!("Parse Error: {}", e));
+                self.error = Some(format!("Parse Error: {e}"));
             }
         }
     }
