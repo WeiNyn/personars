@@ -110,24 +110,8 @@ impl PersonarsApp {
             Default::default()
         }
     }
-}
 
-impl eframe::App for PersonarsApp {
-    /// Called by the framework to save state before shutdown.
-    fn save(&mut self, storage: &mut dyn eframe::Storage) {
-        eframe::set_value(storage, eframe::APP_KEY, self);
-    }
-
-    /// Called each time the UI needs repainting, which may be many times per second.
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
-            egui::MenuBar::new().ui(ui, |ui| {
-                ui.label("Personars - Personal Tools");
-                egui::widgets::global_theme_preference_buttons(ui);
-            });
-        });
-
-        // Sidebar
+    fn render_sidebar(&mut self, ctx: &egui::Context) {
         egui::SidePanel::right("side_panel")
             .resizable(true)
             .default_width(100.0)
@@ -180,6 +164,75 @@ impl eframe::App for PersonarsApp {
                     ui.separator();
                 });
             });
+    }
+
+    fn render_dashboard(&mut self, ui: &mut egui::Ui) {
+        ui.vertical_centered(|ui| {
+            ui.add_space(50.0);
+            ui.heading(egui::RichText::new("Welcome to Personars").size(32.0));
+            ui.label(egui::RichText::new("Select a tool to get started").size(18.0));
+            ui.add_space(40.0);
+
+            let item_width = 160.0;
+            let spacing = 20.0;
+            let available_width = ui.available_width();
+            let max_columns =
+                ((available_width + spacing) / (item_width + spacing)).floor() as usize;
+            let max_columns = max_columns.max(1);
+
+            let grid_width = max_columns as f32 * (item_width + spacing) - spacing;
+            let margin_left = (available_width - grid_width) / 2.0;
+
+            egui::ScrollArea::vertical().show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.add_space(margin_left.max(0.0));
+                    egui::Grid::new("dashboard_grid")
+                        .spacing([spacing, spacing])
+                        .show(ui, |ui| {
+                            for (i, tool_state) in self.tools.iter_mut().enumerate() {
+                                let icon = tool_state.tool.icon_name();
+                                let name = tool_state.tool.name();
+
+                                ui.vertical(|ui| {
+                                    let btn = egui::Button::new(
+                                        egui::RichText::new(format!("{}\n\n{}", icon, name))
+                                            .size(18.0)
+                                            .heading(),
+                                    )
+                                    .min_size(egui::vec2(item_width, 120.0));
+
+                                    if ui.add(btn).clicked() {
+                                        tool_state.open = true;
+                                    }
+                                });
+
+                                if (i + 1) % max_columns == 0 {
+                                    ui.end_row();
+                                }
+                            }
+                        });
+                });
+            });
+        });
+    }
+}
+
+impl eframe::App for PersonarsApp {
+    /// Called by the framework to save state before shutdown.
+    fn save(&mut self, storage: &mut dyn eframe::Storage) {
+        eframe::set_value(storage, eframe::APP_KEY, self);
+    }
+
+    /// Called each time the UI needs repainting, which may be many times per second.
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
+            egui::MenuBar::new().ui(ui, |ui| {
+                ui.label("Personars - Personal Tools");
+                egui::widgets::global_theme_preference_buttons(ui);
+            });
+        });
+
+        self.render_sidebar(ctx);
 
         egui::CentralPanel::default().show(ctx, |ui| {
             let central_rect = ui.available_rect_before_wrap();
@@ -188,62 +241,7 @@ impl eframe::App for PersonarsApp {
             let any_open = self.tools.iter().any(|t| t.open);
 
             if !any_open {
-                // Dashboard / Welcome View
-                ui.vertical_centered(|ui| {
-                    ui.add_space(50.0);
-                    ui.heading(egui::RichText::new("Welcome to Personars").size(32.0));
-                    ui.label(egui::RichText::new("Select a tool to get started").size(18.0));
-                    ui.add_space(40.0);
-
-                    // Grid of tools
-                    // Use a wrapping Horizontal layout or Grid?
-                    // Grid needs explicit rows.
-                    // Let's use `ui.horizontal_wrapped` effectively by manually breaking rows or using `egui::Grid`.
-                    // Since we want a nice card grid, `Grid` is stable.
-                    let item_width = 160.0;
-                    let spacing = 20.0;
-                    let available_width = ui.available_width();
-                    let max_columns =
-                        ((available_width + spacing) / (item_width + spacing)).floor() as usize;
-                    let max_columns = max_columns.max(1);
-
-                    let grid_width = max_columns as f32 * (item_width + spacing) - spacing;
-                    let margin_left = (available_width - grid_width) / 2.0;
-
-                    egui::ScrollArea::vertical().show(ui, |ui| {
-                        ui.horizontal(|ui| {
-                            ui.add_space(margin_left.max(0.0));
-                            egui::Grid::new("dashboard_grid")
-                                .spacing([spacing, spacing])
-                                .show(ui, |ui| {
-                                    for (i, tool_state) in self.tools.iter_mut().enumerate() {
-                                        let icon = tool_state.tool.icon_name();
-                                        let name = tool_state.tool.name();
-
-                                        ui.vertical(|ui| {
-                                            let btn = egui::Button::new(
-                                                egui::RichText::new(format!(
-                                                    "{}\n\n{}",
-                                                    icon, name
-                                                ))
-                                                .size(18.0)
-                                                .heading(),
-                                            )
-                                            .min_size(egui::vec2(item_width, 120.0));
-
-                                            if ui.add(btn).clicked() {
-                                                tool_state.open = true;
-                                            }
-                                        });
-
-                                        if (i + 1) % max_columns == 0 {
-                                            ui.end_row();
-                                        }
-                                    }
-                                });
-                        });
-                    });
-                });
+                self.render_dashboard(ui);
             }
 
             // Render tool windows
