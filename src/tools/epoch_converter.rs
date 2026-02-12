@@ -1,21 +1,13 @@
 use super::Tool;
-use chrono::{Local, TimeZone, Utc};
+use chrono::{Local, TimeZone as _, Utc};
 use eframe::egui;
 
+#[derive(Default)]
 pub struct EpochConverter {
     timestamp_input: String,
     date_output: String,
     // For reverse conversion (optional for now, let's stick to timestamp -> date first)
     // or we can make it bidirectional
-}
-
-impl Default for EpochConverter {
-    fn default() -> Self {
-        Self {
-            timestamp_input: String::new(),
-            date_output: String::new(),
-        }
-    }
 }
 
 impl Tool for EpochConverter {
@@ -26,7 +18,7 @@ impl Tool for EpochConverter {
     fn show(&mut self, ctx: &egui::Context, open: &mut bool, rect: egui::Rect) {
         egui::Window::new(self.name())
             .open(open)
-            .default_width(400.0)
+            .default_width(250.0)
             .default_height(300.0)
             .resizable(true)
             .constrain_to(rect)
@@ -34,6 +26,7 @@ impl Tool for EpochConverter {
                 ui.vertical(|ui| {
                     // 1. Current Time Section
                     ui.group(|ui| {
+                        ui.set_width(ui.available_width());
                         ui.heading("Current Time");
                         let now = Local::now();
                         let utc = Utc::now();
@@ -45,7 +38,7 @@ impl Tool for EpochConverter {
                                 ui.output_mut(|o| {
                                     o.commands.push(egui::OutputCommand::CopyText(
                                         now.timestamp().to_string(),
-                                    ))
+                                    ));
                                 });
                             }
                         });
@@ -53,6 +46,7 @@ impl Tool for EpochConverter {
                             ui.label("Unix (ms):");
                             ui.code(now.timestamp_millis().to_string());
                         });
+
                         ui.label(format!("UTC:   {}", utc.format("%Y-%m-%d %H:%M:%S")));
                         ui.label(format!("Local: {}", now.format("%Y-%m-%d %H:%M:%S")));
                     });
