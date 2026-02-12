@@ -159,11 +159,9 @@ impl eframe::App for PersonarsApp {
                             egui::RichText::new(format!("{}  {}", icon, name)).size(16.0)
                         };
 
-                        let btn = egui::Button::new(text)
-                            .selected(tool_state.open)
-                            .min_size(egui::vec2(0.0, 32.0)); // Taller buttons
+                        let btn = egui::Button::new(text).selected(tool_state.open);
 
-                        if ui.add_sized([ui.available_width(), 32.0], btn).clicked() {
+                        if ui.add_sized([ui.available_width(), 0.0], btn).clicked() {
                             tool_state.open = !tool_state.open;
                         }
 
