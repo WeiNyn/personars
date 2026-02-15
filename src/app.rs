@@ -26,6 +26,8 @@ pub struct PersonarsApp {
     todo_list: TodoList,
     todo_list_open: bool,
     mode: AppMode,
+    #[serde(skip)]
+    show_about: bool,
 }
 
 impl Default for PersonarsApp {
@@ -39,6 +41,7 @@ impl Default for PersonarsApp {
             todo_list: TodoList::default(),
             todo_list_open: false,
             mode: AppMode::default(),
+            show_about: false,
         }
     }
 }
@@ -297,6 +300,16 @@ impl eframe::App for PersonarsApp {
 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     egui::widgets::global_theme_preference_buttons(ui);
+                    ui.separator();
+                    if ui
+                        .button(
+                            egui::RichText::new(format!("{} About", egui_phosphor::regular::INFO))
+                                .size(12.0),
+                        )
+                        .clicked()
+                    {
+                        self.show_about = !self.show_about;
+                    }
                 });
             });
         });
@@ -333,6 +346,35 @@ impl eframe::App for PersonarsApp {
                     self.markdown_notes.show_fullscreen(ui);
                 });
             }
+        }
+
+        // About window (rendered on top of everything)
+        if self.show_about {
+            egui::Window::new(format!("{} About Personars", egui_phosphor::regular::INFO))
+                .open(&mut self.show_about)
+                .collapsible(false)
+                .resizable(false)
+                .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+                .show(ctx, |ui| {
+                    ui.vertical_centered(|ui| {
+                        ui.add_space(10.0);
+                        ui.heading(egui::RichText::new("Personars").size(24.0).strong());
+                        ui.add_space(5.0);
+                        ui.label(
+                            egui::RichText::new(format!("v{}", env!("CARGO_PKG_VERSION")))
+                                .size(14.0)
+                                .color(ui.visuals().weak_text_color()),
+                        );
+                        ui.add_space(10.0);
+                        ui.label("A personal developer toolbox built with egui.");
+                        ui.add_space(10.0);
+                        ui.separator();
+                        ui.add_space(5.0);
+                        ui.label("Rust Edition: 2024");
+                        ui.label("Framework: eframe/egui 0.33");
+                        ui.add_space(10.0);
+                    });
+                });
         }
     }
 }
