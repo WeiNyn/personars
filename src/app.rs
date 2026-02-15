@@ -1,3 +1,4 @@
+use crate::tools::markdown_notes::MarkdownNotes;
 use crate::tools::{self, Tool};
 
 struct ToolState {
@@ -5,129 +6,97 @@ struct ToolState {
     open: bool,
 }
 
+#[derive(Default, Clone, Copy, PartialEq, serde::Deserialize, serde::Serialize)]
+enum AppMode {
+    #[default]
+    Tools,
+    NoteDown,
+}
+
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)] // if we add new fields, give them default values when deserializing old state
 pub struct PersonarsApp {
-    // No longer just an index, but a list of states
-    // We don't persist the tools themselves for now, just recreate them
     #[serde(skip)]
     tools: Vec<ToolState>,
+    #[serde(skip)]
+    markdown_notes: MarkdownNotes,
+    mode: AppMode,
 }
 
 impl Default for PersonarsApp {
     fn default() -> Self {
         Self {
-            tools: vec![
-                ToolState {
-                    tool: Box::new(tools::format_converter::FormatConverter::default()),
-                    open: true,
-                },
-                ToolState {
-                    tool: Box::new(tools::epoch_converter::EpochConverter::default()),
-                    open: false,
-                },
-                ToolState {
-                    tool: Box::new(tools::base64_converter::Base64Converter::default()),
-                    open: false,
-                },
-                ToolState {
-                    tool: Box::new(tools::jwt_debugger::JwtDebugger::default()),
-                    open: false,
-                },
-                ToolState {
-                    tool: Box::new(tools::uuid_generator::UuidGenerator::default()),
-                    open: false,
-                },
-                ToolState {
-                    tool: Box::new(tools::hash_generator::HashGenerator::default()),
-                    open: false,
-                },
-                ToolState {
-                    tool: Box::new(tools::password_generator::PasswordGenerator::default()),
-                    open: false,
-                },
-                ToolState {
-                    tool: Box::new(tools::regex_tester::RegexTester::default()),
-                    open: false,
-                },
-                ToolState {
-                    tool: Box::new(tools::qr_code_generator::QrCodeGenerator::default()),
-                    open: false,
-                },
-                ToolState {
-                    tool: Box::new(tools::diff_viewer::DiffViewer::default()),
-                    open: false,
-                },
-                ToolState {
-                    tool: Box::new(tools::todo_list::TodoList::default()),
-                    open: false,
-                },
-            ],
+            tools: Self::create_tools(),
+            markdown_notes: MarkdownNotes::default(),
+            mode: AppMode::default(),
         }
+    }
+}
+
+impl PersonarsApp {
+    fn create_tools() -> Vec<ToolState> {
+        vec![
+            ToolState {
+                tool: Box::new(tools::format_converter::FormatConverter::default()),
+                open: true,
+            },
+            ToolState {
+                tool: Box::new(tools::epoch_converter::EpochConverter::default()),
+                open: false,
+            },
+            ToolState {
+                tool: Box::new(tools::base64_converter::Base64Converter::default()),
+                open: false,
+            },
+            ToolState {
+                tool: Box::new(tools::jwt_debugger::JwtDebugger::default()),
+                open: false,
+            },
+            ToolState {
+                tool: Box::new(tools::uuid_generator::UuidGenerator::default()),
+                open: false,
+            },
+            ToolState {
+                tool: Box::new(tools::hash_generator::HashGenerator::default()),
+                open: false,
+            },
+            ToolState {
+                tool: Box::new(tools::password_generator::PasswordGenerator::default()),
+                open: false,
+            },
+            ToolState {
+                tool: Box::new(tools::regex_tester::RegexTester::default()),
+                open: false,
+            },
+            ToolState {
+                tool: Box::new(tools::qr_code_generator::QrCodeGenerator::default()),
+                open: false,
+            },
+            ToolState {
+                tool: Box::new(tools::diff_viewer::DiffViewer::default()),
+                open: false,
+            },
+            ToolState {
+                tool: Box::new(tools::todo_list::TodoList::default()),
+                open: false,
+            },
+        ]
     }
 }
 
 impl PersonarsApp {
     /// Called once before the first frame.
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        // Load previous app state (if any).
-        // Note that you must enable the `persistence` feature for this to work.
-        // Initialize Phosphor Icons
         let mut fonts = egui::FontDefinitions::default();
         egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
-
         cc.egui_ctx.set_fonts(fonts);
 
         if let Some(storage) = cc.storage {
             let mut app: Self = eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
             // Re-initialize tools since they are skipped in serde
-            app.tools = vec![
-                ToolState {
-                    tool: Box::new(tools::format_converter::FormatConverter::default()),
-                    open: true,
-                },
-                ToolState {
-                    tool: Box::new(tools::epoch_converter::EpochConverter::default()),
-                    open: false,
-                },
-                ToolState {
-                    tool: Box::new(tools::base64_converter::Base64Converter::default()),
-                    open: false,
-                },
-                ToolState {
-                    tool: Box::new(tools::jwt_debugger::JwtDebugger::default()),
-                    open: false,
-                },
-                ToolState {
-                    tool: Box::new(tools::uuid_generator::UuidGenerator::default()),
-                    open: false,
-                },
-                ToolState {
-                    tool: Box::new(tools::hash_generator::HashGenerator::default()),
-                    open: false,
-                },
-                ToolState {
-                    tool: Box::new(tools::password_generator::PasswordGenerator::default()),
-                    open: false,
-                },
-                ToolState {
-                    tool: Box::new(tools::regex_tester::RegexTester::default()),
-                    open: false,
-                },
-                ToolState {
-                    tool: Box::new(tools::qr_code_generator::QrCodeGenerator::default()),
-                    open: false,
-                },
-                ToolState {
-                    tool: Box::new(tools::diff_viewer::DiffViewer::default()),
-                    open: false,
-                },
-                ToolState {
-                    tool: Box::new(tools::todo_list::TodoList::default()),
-                    open: false,
-                },
-            ];
+            app.tools = Self::create_tools();
+            app.markdown_notes = MarkdownNotes::default();
             app
         } else {
             Default::default()
@@ -250,31 +219,61 @@ impl eframe::App for PersonarsApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
-                ui.label("Personars - Personal Tools");
-                egui::widgets::global_theme_preference_buttons(ui);
+                ui.label("Personars");
+
+                ui.separator();
+
+                // Mode toggle buttons
+                let tools_btn = egui::Button::new(
+                    egui::RichText::new(format!("{} Tools", egui_phosphor::regular::WRENCH))
+                        .size(12.0),
+                )
+                .selected(self.mode == AppMode::Tools);
+                if ui.add(tools_btn).clicked() {
+                    self.mode = AppMode::Tools;
+                }
+
+                let notedown_btn = egui::Button::new(
+                    egui::RichText::new(format!("{} Note Down", egui_phosphor::regular::NOTEBOOK))
+                        .size(12.0),
+                )
+                .selected(self.mode == AppMode::NoteDown);
+                if ui.add(notedown_btn).clicked() {
+                    self.mode = AppMode::NoteDown;
+                }
+
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    egui::widgets::global_theme_preference_buttons(ui);
+                });
             });
         });
 
-        self.render_sidebar(ctx);
+        match self.mode {
+            AppMode::Tools => {
+                self.render_sidebar(ctx);
 
-        egui::CentralPanel::default().show(ctx, |ui| {
-            let central_rect = ui.available_rect_before_wrap();
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    let central_rect = ui.available_rect_before_wrap();
 
-            // Check if any tools are open
-            let any_open = self.tools.iter().any(|t| t.open);
+                    let any_open = self.tools.iter().any(|t| t.open);
+                    if !any_open {
+                        self.render_dashboard(ui);
+                    }
 
-            if !any_open {
-                self.render_dashboard(ui);
+                    for tool_state in &mut self.tools {
+                        if tool_state.open {
+                            tool_state
+                                .tool
+                                .show(ctx, &mut tool_state.open, central_rect);
+                        }
+                    }
+                });
             }
-
-            // Render tool windows
-            for tool_state in &mut self.tools {
-                if tool_state.open {
-                    tool_state
-                        .tool
-                        .show(ctx, &mut tool_state.open, central_rect);
-                }
+            AppMode::NoteDown => {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    self.markdown_notes.show_fullscreen(ui);
+                });
             }
-        });
+        }
     }
 }

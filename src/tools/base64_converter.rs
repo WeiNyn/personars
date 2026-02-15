@@ -20,7 +20,7 @@ impl Tool for Base64Converter {
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool, rect: egui::Rect) {
-        egui::Window::new(self.name())
+        egui::Window::new(format!("{} {}", self.icon_name(), self.name()))
             .open(open)
             .default_width(600.0)
             .default_height(400.0)

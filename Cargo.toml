@@ -12,6 +12,7 @@ targets = ["x86_64-unknown-linux-gnu", "wasm32-unknown-unknown"]
 
 [dependencies]
 egui = "0.33.0"
+egui_extras = "0.33.0"
 eframe = { version = "0.33.0", default-features = false, features = [
     "accesskit",     # Make egui compatible with screen readers. NOTE: adds a lot of dependencies.
     "default_fonts", # Embed the default egui fonts.
@@ -31,7 +32,7 @@ toml = "0.9.11"
 egui_code_editor = "0.2.20"
 chrono = { version = "0.4.43", features = ["serde", "clock"] }
 base64 = "0.22.1"
-uuid = { version = "1.20.0", features = ["v4", "v7", "fast-rng", "js"] }
+uuid = { version = "1.20.0", features = ["v4", "v7", "fast-rng", "js", "serde"] }
 sha2 = "0.10.9"
 md-5 = "0.10.6"
 sha1 = "0.10.6"
@@ -41,6 +42,7 @@ regex = "1.12.3"
 egui-phosphor = "0.11.0"
 qrcode = "0.14.1"
 similar = "2.4.0"
+egui_commonmark = "0.22.0"
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
