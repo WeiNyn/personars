@@ -2,7 +2,7 @@ use super::Tool;
 use chrono::{Local, TimeZone as _, Utc};
 use eframe::egui;
 
-#[derive(Default)]
+#[derive(Default, serde::Deserialize, serde::Serialize)]
 pub struct EpochConverter {
     timestamp_input: String,
     date_output: String,

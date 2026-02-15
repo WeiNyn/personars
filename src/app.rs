@@ -1,10 +1,10 @@
 use crate::tools::markdown_notes::MarkdownNotes;
-use crate::tools::todo_list::TodoList;
-use crate::tools::{self, Tool};
+use crate::tools::{Tool as _, ToolKind};
 
-struct ToolState {
-    tool: Box<dyn Tool>,
-    open: bool,
+#[derive(serde::Deserialize, serde::Serialize)]
+pub struct ToolState {
+    pub tool: ToolKind,
+    pub open: bool,
 }
 
 #[derive(Default, Clone, Copy, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -18,13 +18,8 @@ enum AppMode {
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)] // if we add new fields, give them default values when deserializing old state
 pub struct PersonarsApp {
-    #[serde(skip)]
     tools: Vec<ToolState>,
-    /// Persisted open/closed state for each tool (by index)
-    tool_open_states: Vec<bool>,
     markdown_notes: MarkdownNotes,
-    todo_list: TodoList,
-    todo_list_open: bool,
     mode: AppMode,
     #[serde(skip)]
     show_about: bool,
@@ -32,14 +27,9 @@ pub struct PersonarsApp {
 
 impl Default for PersonarsApp {
     fn default() -> Self {
-        let tools = Self::create_tools();
-        let tool_open_states = tools.iter().map(|t| t.open).collect();
         Self {
-            tools,
-            tool_open_states,
+            tools: Self::create_tools(),
             markdown_notes: MarkdownNotes::default(),
-            todo_list: TodoList::default(),
-            todo_list_open: false,
             mode: AppMode::default(),
             show_about: false,
         }
@@ -50,43 +40,47 @@ impl PersonarsApp {
     fn create_tools() -> Vec<ToolState> {
         vec![
             ToolState {
-                tool: Box::new(tools::format_converter::FormatConverter::default()),
+                tool: ToolKind::FormatConverter(Default::default()),
                 open: true,
             },
             ToolState {
-                tool: Box::new(tools::epoch_converter::EpochConverter::default()),
+                tool: ToolKind::EpochConverter(Default::default()),
                 open: false,
             },
             ToolState {
-                tool: Box::new(tools::base64_converter::Base64Converter::default()),
+                tool: ToolKind::Base64Converter(Default::default()),
                 open: false,
             },
             ToolState {
-                tool: Box::new(tools::jwt_debugger::JwtDebugger::default()),
+                tool: ToolKind::JwtDebugger(Default::default()),
                 open: false,
             },
             ToolState {
-                tool: Box::new(tools::uuid_generator::UuidGenerator::default()),
+                tool: ToolKind::UuidGenerator(Default::default()),
                 open: false,
             },
             ToolState {
-                tool: Box::new(tools::hash_generator::HashGenerator::default()),
+                tool: ToolKind::HashGenerator(Default::default()),
                 open: false,
             },
             ToolState {
-                tool: Box::new(tools::password_generator::PasswordGenerator::default()),
+                tool: ToolKind::PasswordGenerator(Default::default()),
                 open: false,
             },
             ToolState {
-                tool: Box::new(tools::regex_tester::RegexTester::default()),
+                tool: ToolKind::RegexTester(Default::default()),
                 open: false,
             },
             ToolState {
-                tool: Box::new(tools::qr_code_generator::QrCodeGenerator::default()),
+                tool: ToolKind::QrCodeGenerator(Default::default()),
                 open: false,
             },
             ToolState {
-                tool: Box::new(tools::diff_viewer::DiffViewer::default()),
+                tool: ToolKind::DiffViewer(Default::default()),
+                open: false,
+            },
+            ToolState {
+                tool: ToolKind::TodoList(Default::default()),
                 open: false,
             },
         ]
@@ -101,16 +95,7 @@ impl PersonarsApp {
         cc.egui_ctx.set_fonts(fonts);
 
         if let Some(storage) = cc.storage {
-            let mut app: Self = eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
-            // Re-initialize non-persisted tools
-            app.tools = Self::create_tools();
-            // Restore open states from persisted data
-            for (i, tool_state) in app.tools.iter_mut().enumerate() {
-                if let Some(&open) = app.tool_open_states.get(i) {
-                    tool_state.open = open;
-                }
-            }
-            app
+            eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default()
         } else {
             Default::default()
         }
@@ -156,23 +141,6 @@ impl PersonarsApp {
 
                         ui.add_space(4.0);
                     }
-
-                    // TodoList (persisted separately)
-                    let todo_icon = self.todo_list.icon_name();
-                    let todo_name = self.todo_list.name();
-                    let todo_text = if collapsed {
-                        egui::RichText::new(todo_icon).size(12.0)
-                    } else {
-                        egui::RichText::new(format!("{todo_icon}  {todo_name}")).size(10.0)
-                    };
-                    let todo_btn = egui::Button::new(todo_text).selected(self.todo_list_open);
-                    if ui
-                        .add_sized([ui.available_width(), 0.0], todo_btn)
-                        .clicked()
-                    {
-                        self.todo_list_open = !self.todo_list_open;
-                    }
-                    ui.add_space(4.0);
                 });
 
                 ui.with_layout(egui::Layout::bottom_up(egui::Align::Center), |ui| {
@@ -182,7 +150,6 @@ impl PersonarsApp {
                         for t in &mut self.tools {
                             t.open = false;
                         }
-                        self.todo_list_open = false;
                     }
                     ui.separator();
                 });
@@ -212,8 +179,7 @@ impl PersonarsApp {
                     egui::Grid::new("dashboard_grid")
                         .spacing([spacing, spacing])
                         .show(ui, |ui| {
-                            let mut count = 0;
-                            for tool_state in &mut self.tools {
+                            for (i, tool_state) in self.tools.iter_mut().enumerate() {
                                 let icon = tool_state.tool.icon_name();
                                 let name = tool_state.tool.name();
 
@@ -230,31 +196,9 @@ impl PersonarsApp {
                                     }
                                 });
 
-                                count += 1;
-                                if count % max_columns == 0 {
+                                if (i + 1) % max_columns == 0 {
                                     ui.end_row();
                                 }
-                            }
-
-                            // TodoList (persisted separately)
-                            let todo_icon = self.todo_list.icon_name();
-                            let todo_name = self.todo_list.name();
-                            ui.vertical(|ui| {
-                                let btn = egui::Button::new(
-                                    egui::RichText::new(format!("{todo_icon}\n\n{todo_name}"))
-                                        .size(18.0)
-                                        .heading(),
-                                )
-                                .min_size(egui::vec2(item_width, 120.0));
-
-                                if ui.add(btn).clicked() {
-                                    self.todo_list_open = true;
-                                }
-                            });
-
-                            count += 1;
-                            if count % max_columns == 0 {
-                                ui.end_row();
                             }
                         });
                 });
@@ -266,8 +210,6 @@ impl PersonarsApp {
 impl eframe::App for PersonarsApp {
     /// Called by the framework to save state before shutdown.
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
-        // Sync tool open states before saving
-        self.tool_open_states = self.tools.iter().map(|t| t.open).collect();
         eframe::set_value(storage, eframe::APP_KEY, self);
     }
 
@@ -321,7 +263,7 @@ impl eframe::App for PersonarsApp {
                 egui::CentralPanel::default().show(ctx, |ui| {
                     let central_rect = ui.available_rect_before_wrap();
 
-                    let any_open = self.tools.iter().any(|t| t.open) || self.todo_list_open;
+                    let any_open = self.tools.iter().any(|t| t.open);
                     if !any_open {
                         self.render_dashboard(ui);
                     }
@@ -332,12 +274,6 @@ impl eframe::App for PersonarsApp {
                                 .tool
                                 .show(ctx, &mut tool_state.open, central_rect);
                         }
-                    }
-
-                    // Render TodoList window (persisted separately)
-                    if self.todo_list_open {
-                        self.todo_list
-                            .show(ctx, &mut self.todo_list_open, central_rect);
                     }
                 });
             }

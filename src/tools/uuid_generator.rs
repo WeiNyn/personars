@@ -2,12 +2,13 @@ use super::Tool;
 use eframe::egui;
 use uuid::Uuid;
 
-#[derive(PartialEq, Clone, Copy)]
+#[derive(PartialEq, Clone, Copy, serde::Deserialize, serde::Serialize)]
 enum UuidVersion {
     V4,
     V7,
 }
 
+#[derive(serde::Deserialize, serde::Serialize)]
 pub struct UuidGenerator {
     version: UuidVersion,
     count: usize,

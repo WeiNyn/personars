@@ -2,9 +2,11 @@ use super::Tool;
 use eframe::egui::{self, Color32, TextFormat};
 use similar::{ChangeTag, TextDiff};
 
+#[derive(serde::Deserialize, serde::Serialize)]
 pub struct DiffViewer {
     original: String,
     modified: String,
+    #[serde(skip)]
     diff_output_job: Option<egui::text::LayoutJob>,
 }
 

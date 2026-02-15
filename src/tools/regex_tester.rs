@@ -2,11 +2,13 @@ use super::Tool;
 use eframe::egui::{self, Color32, TextFormat, text::LayoutJob};
 use regex::Regex;
 
-#[derive(Default)]
+#[derive(Default, serde::Deserialize, serde::Serialize)]
 pub struct RegexTester {
     pattern: String,
     test_text: String,
+    #[serde(skip)]
     compiled_regex: Option<Regex>,
+    #[serde(skip)]
     error: Option<String>,
 }
 

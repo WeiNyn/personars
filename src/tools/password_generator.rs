@@ -2,6 +2,7 @@ use super::Tool;
 use eframe::egui;
 use rand::RngExt as _;
 
+#[derive(serde::Deserialize, serde::Serialize)]
 pub struct PasswordGenerator {
     length: usize,
     use_upper: bool,

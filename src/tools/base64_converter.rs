@@ -2,11 +2,12 @@ use super::Tool;
 use base64::{Engine as _, engine::general_purpose};
 use eframe::egui;
 
-#[derive(Default)]
+#[derive(Default, serde::Deserialize, serde::Serialize)]
 pub struct Base64Converter {
     input: String,
     output: String,
     url_safe: bool,
+    #[serde(skip)]
     error: Option<String>,
 }
 

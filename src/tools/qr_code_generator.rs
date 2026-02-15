@@ -2,10 +2,12 @@ use super::Tool;
 use eframe::egui::{self, Color32, ColorImage, TextureHandle};
 use qrcode::QrCode;
 
-#[derive(Default)]
+#[derive(Default, serde::Deserialize, serde::Serialize)]
 pub struct QrCodeGenerator {
     text: String,
+    #[serde(skip)]
     qr_texture: Option<TextureHandle>,
+    #[serde(skip)]
     error: Option<String>,
 }
 

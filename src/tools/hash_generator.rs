@@ -4,7 +4,7 @@ use md5::Md5;
 use sha1::Sha1;
 use sha2::{Digest as _, Sha256, Sha512};
 
-#[derive(Default)]
+#[derive(Default, serde::Deserialize, serde::Serialize)]
 pub struct HashGenerator {
     input: String,
     md5: String,

@@ -2,12 +2,13 @@ use super::Tool;
 use base64::{Engine as _, engine::general_purpose};
 use eframe::egui;
 
-#[derive(Default)]
+#[derive(Default, serde::Deserialize, serde::Serialize)]
 pub struct JwtDebugger {
     input_token: String,
     header_json: String,
     payload_json: String,
     signature: String,
+    #[serde(skip)]
     error: Option<String>,
 }
 
