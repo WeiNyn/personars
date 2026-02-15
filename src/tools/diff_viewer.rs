@@ -41,44 +41,57 @@ impl Tool for DiffViewer {
                     ui.label("Diff Viewer");
                     ui.separator();
 
+                    let line_height = egui::TextStyle::Monospace.resolve(ui.style()).size;
+                    let rows = 20;
+                    let max_height = line_height * rows as f32;
+
                     // Split view for inputs
                     ui.columns(2, |columns| {
                         #[expect(clippy::indexing_slicing)]
                         columns[0].vertical(|ui| {
+                            ui.set_max_height(max_height);
                             ui.label("Original:");
-                            if ui
-                                .add(
-                                    egui::TextEdit::multiline(&mut self.original)
-                                        .hint_text("Paste original text here...")
-                                        .desired_width(f32::INFINITY)
-                                        .desired_rows(10)
-                                        .code_editor(),
-                                )
-                                .changed()
-                            {
+                            let response = egui_code_editor::CodeEditor::default()
+                                .id_source("original")
+                                .auto_shrink(false)
+                                .vscroll(true)
+                                .with_numlines(true)
+                                .with_rows(17)
+                                .with_fontsize(12.0)
+                                .with_theme(if ui.style().visuals.dark_mode {
+                                    egui_code_editor::ColorTheme::GITHUB_DARK
+                                } else {
+                                    egui_code_editor::ColorTheme::GITHUB_LIGHT
+                                })
+                                .show(ui, &mut self.original);
+                            if response.response.changed() {
                                 self.compute_diff(ui);
                             }
                         });
 
                         #[expect(clippy::indexing_slicing)]
                         columns[1].vertical(|ui| {
+                            ui.set_max_height(max_height);
                             ui.label("Modified:");
-                            if ui
-                                .add(
-                                    egui::TextEdit::multiline(&mut self.modified)
-                                        .hint_text("Paste modified text here...")
-                                        .desired_width(f32::INFINITY)
-                                        .desired_rows(10)
-                                        .code_editor(),
-                                )
-                                .changed()
-                            {
+                            let response = egui_code_editor::CodeEditor::default()
+                                .id_source("modified")
+                                .auto_shrink(false)
+                                .vscroll(true)
+                                .with_numlines(true)
+                                .with_rows(17)
+                                .with_fontsize(12.0)
+                                .with_theme(if ui.style().visuals.dark_mode {
+                                    egui_code_editor::ColorTheme::GITHUB_DARK
+                                } else {
+                                    egui_code_editor::ColorTheme::GITHUB_LIGHT
+                                })
+                                .show(ui, &mut self.modified);
+                            if response.response.changed() {
                                 self.compute_diff(ui);
                             }
                         });
                     });
 
-                    ui.add_space(10.0);
                     ui.separator();
                     ui.label("Diff Output:");
                     ui.separator();
@@ -89,9 +102,11 @@ impl Tool for DiffViewer {
                     }
 
                     if let Some(job) = &self.diff_output_job {
-                        egui::ScrollArea::vertical().show(ui, |ui| {
-                            ui.label(job.clone());
-                        });
+                        egui::ScrollArea::vertical()
+                            .auto_shrink([false, false])
+                            .show(ui, |ui| {
+                                ui.label(job.clone());
+                            });
                     }
                 });
             });
