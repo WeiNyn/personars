@@ -1,4 +1,4 @@
-var cacheName = 'egui-template-pwa';
+var cacheName = 'personars-v0.1.0';
 var filesToCache = [
   './',
   './index.html',
