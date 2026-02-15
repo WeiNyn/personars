@@ -1,4 +1,5 @@
 use crate::tools::markdown_notes::MarkdownNotes;
+use crate::tools::todo_list::TodoList;
 use crate::tools::{self, Tool};
 
 struct ToolState {
@@ -19,16 +20,24 @@ enum AppMode {
 pub struct PersonarsApp {
     #[serde(skip)]
     tools: Vec<ToolState>,
-    #[serde(skip)]
+    /// Persisted open/closed state for each tool (by index)
+    tool_open_states: Vec<bool>,
     markdown_notes: MarkdownNotes,
+    todo_list: TodoList,
+    todo_list_open: bool,
     mode: AppMode,
 }
 
 impl Default for PersonarsApp {
     fn default() -> Self {
+        let tools = Self::create_tools();
+        let tool_open_states = tools.iter().map(|t| t.open).collect();
         Self {
-            tools: Self::create_tools(),
+            tools,
+            tool_open_states,
             markdown_notes: MarkdownNotes::default(),
+            todo_list: TodoList::default(),
+            todo_list_open: false,
             mode: AppMode::default(),
         }
     }
@@ -77,10 +86,6 @@ impl PersonarsApp {
                 tool: Box::new(tools::diff_viewer::DiffViewer::default()),
                 open: false,
             },
-            ToolState {
-                tool: Box::new(tools::todo_list::TodoList::default()),
-                open: false,
-            },
         ]
     }
 }
@@ -94,9 +99,14 @@ impl PersonarsApp {
 
         if let Some(storage) = cc.storage {
             let mut app: Self = eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
-            // Re-initialize tools since they are skipped in serde
+            // Re-initialize non-persisted tools
             app.tools = Self::create_tools();
-            app.markdown_notes = MarkdownNotes::default();
+            // Restore open states from persisted data
+            for (i, tool_state) in app.tools.iter_mut().enumerate() {
+                if let Some(&open) = app.tool_open_states.get(i) {
+                    tool_state.open = open;
+                }
+            }
             app
         } else {
             Default::default()
@@ -143,6 +153,23 @@ impl PersonarsApp {
 
                         ui.add_space(4.0);
                     }
+
+                    // TodoList (persisted separately)
+                    let todo_icon = self.todo_list.icon_name();
+                    let todo_name = self.todo_list.name();
+                    let todo_text = if collapsed {
+                        egui::RichText::new(todo_icon).size(12.0)
+                    } else {
+                        egui::RichText::new(format!("{todo_icon}  {todo_name}")).size(10.0)
+                    };
+                    let todo_btn = egui::Button::new(todo_text).selected(self.todo_list_open);
+                    if ui
+                        .add_sized([ui.available_width(), 0.0], todo_btn)
+                        .clicked()
+                    {
+                        self.todo_list_open = !self.todo_list_open;
+                    }
+                    ui.add_space(4.0);
                 });
 
                 ui.with_layout(egui::Layout::bottom_up(egui::Align::Center), |ui| {
@@ -152,6 +179,7 @@ impl PersonarsApp {
                         for t in &mut self.tools {
                             t.open = false;
                         }
+                        self.todo_list_open = false;
                     }
                     ui.separator();
                 });
@@ -181,7 +209,8 @@ impl PersonarsApp {
                     egui::Grid::new("dashboard_grid")
                         .spacing([spacing, spacing])
                         .show(ui, |ui| {
-                            for (i, tool_state) in self.tools.iter_mut().enumerate() {
+                            let mut count = 0;
+                            for tool_state in &mut self.tools {
                                 let icon = tool_state.tool.icon_name();
                                 let name = tool_state.tool.name();
 
@@ -198,9 +227,31 @@ impl PersonarsApp {
                                     }
                                 });
 
-                                if (i + 1) % max_columns == 0 {
+                                count += 1;
+                                if count % max_columns == 0 {
                                     ui.end_row();
                                 }
+                            }
+
+                            // TodoList (persisted separately)
+                            let todo_icon = self.todo_list.icon_name();
+                            let todo_name = self.todo_list.name();
+                            ui.vertical(|ui| {
+                                let btn = egui::Button::new(
+                                    egui::RichText::new(format!("{todo_icon}\n\n{todo_name}"))
+                                        .size(18.0)
+                                        .heading(),
+                                )
+                                .min_size(egui::vec2(item_width, 120.0));
+
+                                if ui.add(btn).clicked() {
+                                    self.todo_list_open = true;
+                                }
+                            });
+
+                            count += 1;
+                            if count % max_columns == 0 {
+                                ui.end_row();
                             }
                         });
                 });
@@ -212,6 +263,8 @@ impl PersonarsApp {
 impl eframe::App for PersonarsApp {
     /// Called by the framework to save state before shutdown.
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
+        // Sync tool open states before saving
+        self.tool_open_states = self.tools.iter().map(|t| t.open).collect();
         eframe::set_value(storage, eframe::APP_KEY, self);
     }
 
@@ -255,7 +308,7 @@ impl eframe::App for PersonarsApp {
                 egui::CentralPanel::default().show(ctx, |ui| {
                     let central_rect = ui.available_rect_before_wrap();
 
-                    let any_open = self.tools.iter().any(|t| t.open);
+                    let any_open = self.tools.iter().any(|t| t.open) || self.todo_list_open;
                     if !any_open {
                         self.render_dashboard(ui);
                     }
@@ -266,6 +319,12 @@ impl eframe::App for PersonarsApp {
                                 .tool
                                 .show(ctx, &mut tool_state.open, central_rect);
                         }
+                    }
+
+                    // Render TodoList window (persisted separately)
+                    if self.todo_list_open {
+                        self.todo_list
+                            .show(ctx, &mut self.todo_list_open, central_rect);
                     }
                 });
             }
