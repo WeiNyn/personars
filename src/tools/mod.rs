@@ -2,8 +2,10 @@ use eframe::egui;
 
 pub trait Tool {
     fn name(&self) -> &'static str;
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool, rect: egui::Rect);
     fn icon_name(&self) -> &'static str;
+    fn show(&mut self, ctx: &egui::Context, open: &mut bool, rect: egui::Rect);
+    /// Render tool content inline for narrow/mobile screens (no `egui::Window` wrapper).
+    fn show_narrow(&mut self, ui: &mut egui::Ui);
 }
 
 pub mod base64_converter;
@@ -82,6 +84,22 @@ impl Tool for ToolKind {
             Self::QrCodeGenerator(t) => t.show(ctx, open, rect),
             Self::DiffViewer(t) => t.show(ctx, open, rect),
             Self::TodoList(t) => t.show(ctx, open, rect),
+        }
+    }
+
+    fn show_narrow(&mut self, ui: &mut egui::Ui) {
+        match self {
+            Self::FormatConverter(t) => t.show_narrow(ui),
+            Self::EpochConverter(t) => t.show_narrow(ui),
+            Self::Base64Converter(t) => t.show_narrow(ui),
+            Self::JwtDebugger(t) => t.show_narrow(ui),
+            Self::UuidGenerator(t) => t.show_narrow(ui),
+            Self::HashGenerator(t) => t.show_narrow(ui),
+            Self::PasswordGenerator(t) => t.show_narrow(ui),
+            Self::RegexTester(t) => t.show_narrow(ui),
+            Self::QrCodeGenerator(t) => t.show_narrow(ui),
+            Self::DiffViewer(t) => t.show_narrow(ui),
+            Self::TodoList(t) => t.show_narrow(ui),
         }
     }
 }

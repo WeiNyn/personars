@@ -27,63 +27,76 @@ impl Tool for EpochConverter {
             .resizable(true)
             .constrain_to(rect)
             .show(ctx, |ui| {
-                ui.vertical(|ui| {
-                    // 1. Current Time Section
-                    ui.group(|ui| {
-                        ui.set_width(ui.available_width());
-                        ui.heading("Current Time");
-                        let now = Local::now();
-                        let utc = Utc::now();
-
-                        ui.horizontal(|ui| {
-                            ui.label("Unix (s):");
-                            ui.code(now.timestamp().to_string());
-                            if ui.button("Copy").clicked() {
-                                ui.output_mut(|o| {
-                                    o.commands.push(egui::OutputCommand::CopyText(
-                                        now.timestamp().to_string(),
-                                    ));
-                                });
-                            }
-                        });
-                        ui.horizontal(|ui| {
-                            ui.label("Unix (ms):");
-                            ui.code(now.timestamp_millis().to_string());
-                        });
-
-                        ui.label(format!("UTC:   {}", utc.format("%Y-%m-%d %H:%M:%S")));
-                        ui.label(format!("Local: {}", now.format("%Y-%m-%d %H:%M:%S")));
-                    });
-
-                    ui.separator();
-
-                    // 2. Converter Section
-                    ui.heading("Convert");
-
-                    ui.horizontal(|ui| {
-                        ui.label("Timestamp:");
-                        let response = ui.text_edit_singleline(&mut self.timestamp_input);
-
-                        if response.changed() {
-                            self.convert();
-                        }
-                    });
-
-                    if !self.date_output.is_empty() {
-                        ui.group(|ui| {
-                            ui.label(egui::RichText::new(&self.date_output).monospace());
-                        });
-                    }
-
-                    if ui.button("Clear").clicked() {
-                        self.timestamp_input.clear();
-                        self.date_output.clear();
-                    }
-                });
+                self.render_content(ui);
             });
 
         // Request repaint to update the clock every second suitable for a "clock" tool
         ctx.request_repaint_after(std::time::Duration::from_secs(1));
+    }
+
+    fn show_narrow(&mut self, ui: &mut egui::Ui) {
+        egui::ScrollArea::vertical().show(ui, |ui| {
+            self.render_content(ui);
+        });
+        ui.ctx()
+            .request_repaint_after(std::time::Duration::from_secs(1));
+    }
+}
+
+impl EpochConverter {
+    fn render_content(&mut self, ui: &mut egui::Ui) {
+        ui.vertical(|ui| {
+            // 1. Current Time Section
+            ui.group(|ui| {
+                ui.set_width(ui.available_width());
+                ui.heading("Current Time");
+                let now = Local::now();
+                let utc = Utc::now();
+
+                ui.horizontal(|ui| {
+                    ui.label("Unix (s):");
+                    ui.code(now.timestamp().to_string());
+                    if ui.button("Copy").clicked() {
+                        ui.output_mut(|o| {
+                            o.commands
+                                .push(egui::OutputCommand::CopyText(now.timestamp().to_string()));
+                        });
+                    }
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Unix (ms):");
+                    ui.code(now.timestamp_millis().to_string());
+                });
+
+                ui.label(format!("UTC:   {}", utc.format("%Y-%m-%d %H:%M:%S")));
+                ui.label(format!("Local: {}", now.format("%Y-%m-%d %H:%M:%S")));
+            });
+
+            ui.separator();
+
+            // 2. Converter Section
+            ui.heading("Convert");
+
+            ui.horizontal(|ui| {
+                ui.label("Timestamp:");
+                let response = ui.text_edit_singleline(&mut self.timestamp_input);
+
+                if response.changed() {
+                    self.convert();
+                }
+            });
+
+            if !self.date_output.is_empty() {
+                ui.group(|ui| {
+                    ui.label(egui::RichText::new(&self.date_output).monospace());
+                });
+            }
+
+            if ui.button("Clear").clicked() {
+                self.timestamp_input.clear();
+                self.date_output.clear();
+            }
+        });
     }
 }
 

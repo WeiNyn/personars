@@ -7,6 +7,13 @@ use egui_extras::{Size, StripBuilder};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+#[derive(Clone, Copy, Default, PartialEq, Deserialize, Serialize)]
+enum NarrowTab {
+    #[default]
+    Edit,
+    Preview,
+}
+
 #[derive(Clone, Deserialize, Serialize)]
 struct Note {
     id: Uuid,
@@ -27,6 +34,7 @@ pub struct MarkdownNotes {
     search_query: String,
     #[serde(skip)]
     commonmark_cache: CommonMarkCache,
+    narrow_tab: NarrowTab,
 }
 
 // Manual Serialize implementation to skip commonmark_cache
@@ -36,9 +44,10 @@ impl Serialize for MarkdownNotes {
         S: serde::Serializer,
     {
         use serde::ser::SerializeStruct as _;
-        let mut state = serializer.serialize_struct("MarkdownNotes", 2)?;
+        let mut state = serializer.serialize_struct("MarkdownNotes", 3)?;
         state.serialize_field("notes", &self.notes)?;
         state.serialize_field("active_note_id", &self.active_note_id)?;
+        state.serialize_field("narrow_tab", &self.narrow_tab)?;
         state.end()
     }
 }
@@ -58,6 +67,7 @@ impl Default for MarkdownNotes {
             notes: vec![welcome_note],
             search_query: String::new(),
             commonmark_cache: CommonMarkCache::default(),
+            narrow_tab: NarrowTab::default(),
         }
     }
 }
@@ -82,16 +92,59 @@ impl Tool for MarkdownNotes {
                 self.render_layout(ui);
             });
     }
+
+    fn show_narrow(&mut self, ui: &mut egui::Ui) {
+        ui.vertical(|ui| {
+            // Note selector dropdown
+            ui.horizontal(|ui| {
+                let current_title = self
+                    .active_note_id
+                    .and_then(|id| self.notes.iter().find(|n| n.id == id))
+                    .map_or("Select a note...".to_owned(), |n| n.title.clone());
+
+                egui::ComboBox::from_id_salt("note_selector_narrow")
+                    .selected_text(current_title)
+                    .width(ui.available_width() - 40.0)
+                    .show_ui(ui, |ui| {
+                        for note in &self.notes {
+                            let is_selected = self.active_note_id == Some(note.id);
+                            if ui.selectable_label(is_selected, &note.title).clicked() {
+                                self.active_note_id = Some(note.id);
+                            }
+                        }
+                    });
+
+                if ui.button(RichText::new("➕").strong()).clicked() {
+                    self.create_new_note();
+                }
+            });
+
+            ui.separator();
+
+            if self.active_note_id.is_some() {
+                // Tab bar
+                ui.horizontal(|ui| {
+                    ui.selectable_value(&mut self.narrow_tab, NarrowTab::Edit, "✏ Edit");
+                    ui.selectable_value(&mut self.narrow_tab, NarrowTab::Preview, "👁 Preview");
+                });
+                ui.separator();
+
+                match self.narrow_tab {
+                    NarrowTab::Edit => self.render_editor(ui),
+                    NarrowTab::Preview => self.render_preview(ui),
+                }
+            } else {
+                ui.centered_and_justified(|ui| {
+                    ui.label("Select a note to edit.");
+                });
+            }
+        });
+    }
 }
 
 impl MarkdownNotes {
-    /// Full-screen mode: renders directly in the given `Ui` without a window wrapper.
-    pub fn show_fullscreen(&mut self, ui: &mut egui::Ui) {
-        self.render_layout(ui);
-    }
-
     /// Shared 3-pane layout used by both windowed and full-screen modes.
-    fn render_layout(&mut self, ui: &mut egui::Ui) {
+    pub fn render_layout(&mut self, ui: &mut egui::Ui) {
         StripBuilder::new(ui)
             .size(Size::relative(0.2).at_least(100.0)) // Sidebar 20%, min 100px
             .size(Size::exact(1.0)) // Separator

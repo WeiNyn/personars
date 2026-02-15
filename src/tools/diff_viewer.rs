@@ -37,79 +37,141 @@ impl Tool for DiffViewer {
             .resizable(true)
             .constrain_to(rect)
             .show(ctx, |ui| {
-                ui.vertical(|ui| {
-                    ui.label("Diff Viewer");
-                    ui.separator();
+                self.render_content_wide(ui);
+            });
+    }
 
-                    let line_height = egui::TextStyle::Monospace.resolve(ui.style()).size;
-                    let rows = 20;
-                    let max_height = line_height * rows as f32;
+    fn show_narrow(&mut self, ui: &mut egui::Ui) {
+        egui::ScrollArea::vertical().show(ui, |ui| {
+            ui.label("Diff Viewer");
+            ui.separator();
 
-                    // Split view for inputs
-                    ui.columns(2, |columns| {
-                        #[expect(clippy::indexing_slicing)]
-                        columns[0].vertical(|ui| {
-                            ui.set_max_height(max_height);
-                            ui.label("Original:");
-                            let response = egui_code_editor::CodeEditor::default()
-                                .id_source("original")
-                                .auto_shrink(false)
-                                .vscroll(true)
-                                .with_numlines(true)
-                                .with_rows(17)
-                                .with_fontsize(12.0)
-                                .with_theme(if ui.style().visuals.dark_mode {
-                                    egui_code_editor::ColorTheme::GITHUB_DARK
-                                } else {
-                                    egui_code_editor::ColorTheme::GITHUB_LIGHT
-                                })
-                                .show(ui, &mut self.original);
-                            if response.response.changed() {
-                                self.compute_diff(ui);
-                            }
-                        });
+            let theme = if ui.style().visuals.dark_mode {
+                egui_code_editor::ColorTheme::GITHUB_DARK
+            } else {
+                egui_code_editor::ColorTheme::GITHUB_LIGHT
+            };
 
-                        #[expect(clippy::indexing_slicing)]
-                        columns[1].vertical(|ui| {
-                            ui.set_max_height(max_height);
-                            ui.label("Modified:");
-                            let response = egui_code_editor::CodeEditor::default()
-                                .id_source("modified")
-                                .auto_shrink(false)
-                                .vscroll(true)
-                                .with_numlines(true)
-                                .with_rows(17)
-                                .with_fontsize(12.0)
-                                .with_theme(if ui.style().visuals.dark_mode {
-                                    egui_code_editor::ColorTheme::GITHUB_DARK
-                                } else {
-                                    egui_code_editor::ColorTheme::GITHUB_LIGHT
-                                })
-                                .show(ui, &mut self.modified);
-                            if response.response.changed() {
-                                self.compute_diff(ui);
-                            }
-                        });
-                    });
+            // Vertically stacked editor panes
+            ui.label("Original:");
+            let r1 = egui_code_editor::CodeEditor::default()
+                .id_source("original_narrow")
+                .auto_shrink(false)
+                .vscroll(true)
+                .with_numlines(true)
+                .with_rows(8)
+                .with_fontsize(12.0)
+                .with_theme(theme)
+                .show(ui, &mut self.original);
+            if r1.response.changed() {
+                self.compute_diff(ui);
+            }
 
-                    ui.separator();
-                    ui.label("Diff Output:");
-                    ui.separator();
+            ui.add_space(8.0);
 
-                    // Initial computation if needed
-                    if self.diff_output_job.is_none() {
+            ui.label("Modified:");
+            let r2 = egui_code_editor::CodeEditor::default()
+                .id_source("modified_narrow")
+                .auto_shrink(false)
+                .vscroll(true)
+                .with_numlines(true)
+                .with_rows(8)
+                .with_fontsize(12.0)
+                .with_theme(theme)
+                .show(ui, &mut self.modified);
+            if r2.response.changed() {
+                self.compute_diff(ui);
+            }
+
+            ui.separator();
+            ui.label("Diff Output:");
+            ui.separator();
+
+            if self.diff_output_job.is_none() {
+                self.compute_diff(ui);
+            }
+
+            if let Some(job) = &self.diff_output_job {
+                ui.label(job.clone());
+            }
+        });
+    }
+}
+
+impl DiffViewer {
+    fn render_content_wide(&mut self, ui: &mut egui::Ui) {
+        ui.vertical(|ui| {
+            ui.label("Diff Viewer");
+            ui.separator();
+
+            let line_height = egui::TextStyle::Monospace.resolve(ui.style()).size;
+            let rows = 20;
+            let max_height = line_height * rows as f32;
+
+            // Split view for inputs
+            ui.columns(2, |columns| {
+                #[expect(clippy::indexing_slicing)]
+                columns[0].vertical(|ui| {
+                    ui.set_max_height(max_height);
+                    ui.label("Original:");
+                    let response = egui_code_editor::CodeEditor::default()
+                        .id_source("original")
+                        .auto_shrink(false)
+                        .vscroll(true)
+                        .with_numlines(true)
+                        .with_rows(17)
+                        .with_fontsize(12.0)
+                        .with_theme(if ui.style().visuals.dark_mode {
+                            egui_code_editor::ColorTheme::GITHUB_DARK
+                        } else {
+                            egui_code_editor::ColorTheme::GITHUB_LIGHT
+                        })
+                        .show(ui, &mut self.original);
+                    if response.response.changed() {
                         self.compute_diff(ui);
                     }
+                });
 
-                    if let Some(job) = &self.diff_output_job {
-                        egui::ScrollArea::vertical()
-                            .auto_shrink([false, false])
-                            .show(ui, |ui| {
-                                ui.label(job.clone());
-                            });
+                #[expect(clippy::indexing_slicing)]
+                columns[1].vertical(|ui| {
+                    ui.set_max_height(max_height);
+                    ui.label("Modified:");
+                    let response = egui_code_editor::CodeEditor::default()
+                        .id_source("modified")
+                        .auto_shrink(false)
+                        .vscroll(true)
+                        .with_numlines(true)
+                        .with_rows(17)
+                        .with_fontsize(12.0)
+                        .with_theme(if ui.style().visuals.dark_mode {
+                            egui_code_editor::ColorTheme::GITHUB_DARK
+                        } else {
+                            egui_code_editor::ColorTheme::GITHUB_LIGHT
+                        })
+                        .show(ui, &mut self.modified);
+                    if response.response.changed() {
+                        self.compute_diff(ui);
                     }
                 });
             });
+
+            ui.separator();
+            ui.label("Diff Output:");
+            ui.separator();
+
+            // Initial computation if needed
+            if self.diff_output_job.is_none() {
+                self.compute_diff(ui);
+            }
+
+            if let Some(job) = &self.diff_output_job {
+                egui::ScrollArea::vertical()
+                    .auto_shrink([false, false])
+                    .show(ui, |ui| {
+                        ui.label(job.clone());
+                    });
+            }
+        });
     }
 }
 

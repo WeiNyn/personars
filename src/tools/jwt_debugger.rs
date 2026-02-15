@@ -29,67 +29,77 @@ impl Tool for JwtDebugger {
             .resizable(true)
             .constrain_to(rect)
             .show(ctx, |ui| {
-                ui.vertical(|ui| {
-                    ui.horizontal(|ui| {
-                        ui.label("JWT Debugger");
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            if ui.button("Clear All").clicked() {
-                                self.clear();
-                            }
-                        });
-                    });
-                    ui.separator();
+                self.render_content(ui);
+            });
+    }
 
-                    ui.label("Encoded Token:");
-                    let response = ui.add(
-                        egui::TextEdit::multiline(&mut self.input_token)
-                            .hint_text("Paste JWT here...")
-                            .desired_rows(3)
-                            .desired_width(f32::INFINITY),
-                    );
+    fn show_narrow(&mut self, ui: &mut egui::Ui) {
+        self.render_content(ui);
+    }
+}
 
-                    if response.changed() {
-                        self.decode();
+impl JwtDebugger {
+    fn render_content(&mut self, ui: &mut egui::Ui) {
+        ui.vertical(|ui| {
+            ui.horizontal(|ui| {
+                ui.label("JWT Debugger");
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if ui.button("Clear All").clicked() {
+                        self.clear();
                     }
-
-                    if let Some(err) = &self.error {
-                        ui.colored_label(egui::Color32::RED, err);
-                    }
-
-                    ui.separator();
-
-                    egui::ScrollArea::vertical().show(ui, |ui| {
-                        ui.heading("Header");
-                        ui.add(
-                            egui::TextEdit::multiline(&mut self.header_json)
-                                .code_editor()
-                                .interactive(false)
-                                .desired_rows(4)
-                                .desired_width(f32::INFINITY),
-                        );
-
-                        ui.add_space(5.0);
-                        ui.heading("Payload");
-                        ui.add(
-                            egui::TextEdit::multiline(&mut self.payload_json)
-                                .code_editor()
-                                .interactive(false)
-                                .desired_rows(10)
-                                .desired_width(f32::INFINITY),
-                        );
-
-                        ui.add_space(5.0);
-                        ui.heading("Signature");
-                        ui.add(
-                            egui::TextEdit::multiline(&mut self.signature)
-                                .code_editor()
-                                .interactive(false)
-                                .desired_rows(2)
-                                .desired_width(f32::INFINITY),
-                        );
-                    });
                 });
             });
+            ui.separator();
+
+            ui.label("Encoded Token:");
+            let response = ui.add(
+                egui::TextEdit::multiline(&mut self.input_token)
+                    .hint_text("Paste JWT here...")
+                    .desired_rows(3)
+                    .desired_width(f32::INFINITY),
+            );
+
+            if response.changed() {
+                self.decode();
+            }
+
+            if let Some(err) = &self.error {
+                ui.colored_label(egui::Color32::RED, err);
+            }
+
+            ui.separator();
+
+            egui::ScrollArea::vertical().show(ui, |ui| {
+                ui.heading("Header");
+                ui.add(
+                    egui::TextEdit::multiline(&mut self.header_json)
+                        .code_editor()
+                        .interactive(false)
+                        .desired_rows(4)
+                        .desired_width(f32::INFINITY),
+                );
+
+                ui.add_space(5.0);
+                ui.heading("Payload");
+                ui.add(
+                    egui::TextEdit::multiline(&mut self.payload_json)
+                        .code_editor()
+                        .interactive(false)
+                        .desired_rows(10)
+                        .desired_width(f32::INFINITY),
+                );
+
+                ui.add_space(5.0);
+                ui.heading("Signature");
+                ui.add(
+                    egui::TextEdit::multiline(&mut self.signature)
+                        .code_editor()
+                        .interactive(false)
+                        .desired_rows(2)
+                        .desired_width(f32::INFINITY),
+                );
+            });
+        });
     }
 }
 

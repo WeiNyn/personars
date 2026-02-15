@@ -28,68 +28,80 @@ impl Tool for Base64Converter {
             .resizable(true)
             .constrain_to(rect)
             .show(ctx, |ui| {
-                ui.vertical(|ui| {
-                    // Header
-                    ui.horizontal(|ui| {
-                        ui.label("Base64 Converter");
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            if ui.button("Clear All").clicked() {
-                                self.input.clear();
-                                self.output.clear();
-                                self.error = None;
-                            }
-                        });
-                    });
+                self.render_content(ui);
+            });
+    }
 
-                    ui.separator();
+    fn show_narrow(&mut self, ui: &mut egui::Ui) {
+        egui::ScrollArea::vertical().show(ui, |ui| {
+            self.render_content(ui);
+        });
+    }
+}
 
-                    // Input
-                    ui.label("Input:");
-                    ui.add(
-                        egui::TextEdit::multiline(&mut self.input)
-                            .hint_text("Paste text here...")
-                            .desired_rows(5)
-                            .desired_width(f32::INFINITY),
-                    );
-
-                    ui.add_space(5.0);
-
-                    // Controls
-                    ui.horizontal(|ui| {
-                        if ui.button("Encode").clicked() {
-                            self.encode();
-                        }
-                        if ui.button("Decode").clicked() {
-                            self.decode();
-                        }
-                        ui.checkbox(&mut self.url_safe, "URL Safe");
-                    });
-
-                    if let Some(err) = &self.error {
-                        ui.colored_label(egui::Color32::RED, err);
+impl Base64Converter {
+    fn render_content(&mut self, ui: &mut egui::Ui) {
+        ui.vertical(|ui| {
+            // Header
+            ui.horizontal(|ui| {
+                ui.label("Base64 Converter");
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if ui.button("Clear All").clicked() {
+                        self.input.clear();
+                        self.output.clear();
+                        self.error = None;
                     }
-
-                    ui.add_space(5.0);
-
-                    // Output
-                    ui.horizontal(|ui| {
-                        ui.label("Output:");
-                        if ui.button("Copy").clicked() && !self.output.is_empty() {
-                            ui.output_mut(|o| {
-                                o.commands
-                                    .push(egui::OutputCommand::CopyText(self.output.clone()));
-                            });
-                        }
-                    });
-
-                    ui.add(
-                        egui::TextEdit::multiline(&mut self.output)
-                            .interactive(false)
-                            .desired_rows(5)
-                            .desired_width(f32::INFINITY),
-                    );
                 });
             });
+
+            ui.separator();
+
+            // Input
+            ui.label("Input:");
+            ui.add(
+                egui::TextEdit::multiline(&mut self.input)
+                    .hint_text("Paste text here...")
+                    .desired_rows(5)
+                    .desired_width(f32::INFINITY),
+            );
+
+            ui.add_space(5.0);
+
+            // Controls
+            ui.horizontal(|ui| {
+                if ui.button("Encode").clicked() {
+                    self.encode();
+                }
+                if ui.button("Decode").clicked() {
+                    self.decode();
+                }
+                ui.checkbox(&mut self.url_safe, "URL Safe");
+            });
+
+            if let Some(err) = &self.error {
+                ui.colored_label(egui::Color32::RED, err);
+            }
+
+            ui.add_space(5.0);
+
+            // Output
+            ui.horizontal(|ui| {
+                ui.label("Output:");
+                if ui.button("Copy").clicked() && !self.output.is_empty() {
+                    ui.output_mut(|o| {
+                        o.commands
+                            .push(egui::OutputCommand::CopyText(self.output.clone()));
+                    });
+                }
+            });
+
+            ui.add(
+                egui::TextEdit::multiline(&mut self.output)
+                    .interactive(false)
+                    .desired_rows(5)
+                    .desired_width(f32::INFINITY),
+            );
+        });
     }
 }
 

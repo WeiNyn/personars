@@ -28,37 +28,50 @@ impl Tool for QrCodeGenerator {
             .resizable(true)
             .constrain_to(rect)
             .show(ctx, |ui| {
-                ui.vertical(|ui| {
-                    ui.label("QR Code Generator");
-                    ui.separator();
-
-                    ui.label("Content:");
-                    let response = ui.add(
-                        egui::TextEdit::multiline(&mut self.text)
-                            .hint_text("Type text or URL here...")
-                            .desired_rows(3)
-                            .desired_width(f32::INFINITY),
-                    );
-
-                    if response.changed() {
-                        self.generate(ctx);
-                    }
-
-                    if let Some(err) = &self.error {
-                        ui.colored_label(Color32::RED, err);
-                    }
-
-                    ui.add_space(10.0);
-                    ui.separator();
-                    ui.add_space(10.0);
-
-                    if let Some(texture) = &self.qr_texture {
-                        ui.vertical_centered(|ui| {
-                            ui.image((texture.id(), texture.size_vec2()));
-                        });
-                    }
-                });
+                self.render_content(ui);
             });
+    }
+
+    fn show_narrow(&mut self, ui: &mut egui::Ui) {
+        egui::ScrollArea::vertical().show(ui, |ui| {
+            self.render_content(ui);
+        });
+    }
+}
+
+impl QrCodeGenerator {
+    fn render_content(&mut self, ui: &mut egui::Ui) {
+        ui.vertical(|ui| {
+            ui.label("QR Code Generator");
+            ui.separator();
+
+            ui.label("Content:");
+            let response = ui.add(
+                egui::TextEdit::multiline(&mut self.text)
+                    .hint_text("Type text or URL here...")
+                    .desired_rows(3)
+                    .desired_width(f32::INFINITY),
+            );
+
+            if response.changed() {
+                let ctx = ui.ctx().clone();
+                self.generate(&ctx);
+            }
+
+            if let Some(err) = &self.error {
+                ui.colored_label(Color32::RED, err);
+            }
+
+            ui.add_space(10.0);
+            ui.separator();
+            ui.add_space(10.0);
+
+            if let Some(texture) = &self.qr_texture {
+                ui.vertical_centered(|ui| {
+                    ui.image((texture.id(), texture.size_vec2()));
+                });
+            }
+        });
     }
 }
 

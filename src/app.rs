@@ -23,6 +23,8 @@ pub struct PersonarsApp {
     mode: AppMode,
     #[serde(skip)]
     show_about: bool,
+    #[serde(skip)]
+    sidebar_open: bool,
 }
 
 impl Default for PersonarsApp {
@@ -32,6 +34,7 @@ impl Default for PersonarsApp {
             markdown_notes: MarkdownNotes::default(),
             mode: AppMode::default(),
             show_about: false,
+            sidebar_open: false,
         }
     }
 }
@@ -156,15 +159,25 @@ impl PersonarsApp {
             });
     }
 
-    fn render_dashboard(&mut self, ui: &mut egui::Ui) {
+    fn render_dashboard(&mut self, ui: &mut egui::Ui, compact: bool) {
         ui.vertical_centered(|ui| {
-            ui.add_space(50.0);
-            ui.heading(egui::RichText::new("Welcome to Personars").size(32.0));
-            ui.label(egui::RichText::new("Select a tool to get started").size(18.0));
-            ui.add_space(40.0);
+            ui.add_space(if compact { 20.0 } else { 50.0 });
+            ui.heading(
+                egui::RichText::new("Welcome to Personars").size(if compact { 22.0 } else { 32.0 }),
+            );
+            ui.label(
+                egui::RichText::new("Select a tool to get started").size(if compact {
+                    14.0
+                } else {
+                    18.0
+                }),
+            );
+            ui.add_space(if compact { 20.0 } else { 40.0 });
 
-            let item_width = 160.0;
-            let spacing = 20.0;
+            let item_width = if compact { 100.0 } else { 160.0 };
+            let item_height = if compact { 80.0 } else { 120.0 };
+            let icon_size = if compact { 14.0 } else { 18.0 };
+            let spacing = if compact { 10.0 } else { 20.0 };
             let available_width = ui.available_width();
             let max_columns =
                 ((available_width + spacing) / (item_width + spacing)).floor() as usize;
@@ -186,10 +199,10 @@ impl PersonarsApp {
                                 ui.vertical(|ui| {
                                     let btn = egui::Button::new(
                                         egui::RichText::new(format!("{icon}\n\n{name}"))
-                                            .size(18.0)
+                                            .size(icon_size)
                                             .heading(),
                                     )
-                                    .min_size(egui::vec2(item_width, 120.0));
+                                    .min_size(egui::vec2(item_width, item_height));
 
                                     if ui.add(btn).clicked() {
                                         tool_state.open = true;
@@ -215,76 +228,165 @@ impl eframe::App for PersonarsApp {
 
     /// Called each time the UI needs repainting, which may be many times per second.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
-            egui::MenuBar::new().ui(ui, |ui| {
-                ui.label("Personars");
+        let compact = ctx.viewport_rect().width() < 500.0;
 
-                ui.separator();
-
-                // Mode toggle buttons
-                let tools_btn = egui::Button::new(
-                    egui::RichText::new(format!("{} Tools", egui_phosphor::regular::WRENCH))
-                        .size(12.0),
-                )
-                .selected(self.mode == AppMode::Tools);
-                if ui.add(tools_btn).clicked() {
-                    self.mode = AppMode::Tools;
-                }
-
-                let notedown_btn = egui::Button::new(
-                    egui::RichText::new(format!("{} Note Down", egui_phosphor::regular::NOTEBOOK))
-                        .size(12.0),
-                )
-                .selected(self.mode == AppMode::NoteDown);
-                if ui.add(notedown_btn).clicked() {
-                    self.mode = AppMode::NoteDown;
-                }
-
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    egui::widgets::global_theme_preference_buttons(ui);
-                    ui.separator();
-                    if ui
-                        .button(
-                            egui::RichText::new(format!("{} About", egui_phosphor::regular::INFO))
-                                .size(12.0),
-                        )
-                        .clicked()
-                    {
-                        self.show_about = !self.show_about;
-                    }
-                });
-            });
-        });
+        self.render_top_bar(ctx, compact);
 
         match self.mode {
-            AppMode::Tools => {
-                self.render_sidebar(ctx);
-
-                egui::CentralPanel::default().show(ctx, |ui| {
-                    let central_rect = ui.available_rect_before_wrap();
-
-                    let any_open = self.tools.iter().any(|t| t.open);
-                    if !any_open {
-                        self.render_dashboard(ui);
-                    }
-
-                    for tool_state in &mut self.tools {
-                        if tool_state.open {
-                            tool_state
-                                .tool
-                                .show(ctx, &mut tool_state.open, central_rect);
-                        }
-                    }
-                });
-            }
+            AppMode::Tools => self.render_tools_mode(ctx, compact),
             AppMode::NoteDown => {
                 egui::CentralPanel::default().show(ctx, |ui| {
-                    self.markdown_notes.show_fullscreen(ui);
+                    if compact {
+                        self.markdown_notes.show_narrow(ui);
+                    } else {
+                        self.markdown_notes.render_layout(ui);
+                    }
                 });
             }
         }
 
-        // About window (rendered on top of everything)
+        self.render_about(ctx);
+    }
+}
+
+impl PersonarsApp {
+    fn render_top_bar(&mut self, ctx: &egui::Context, compact: bool) {
+        egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
+            egui::MenuBar::new().ui(ui, |ui| {
+                ui.label("Personars");
+                ui.separator();
+
+                if compact {
+                    self.render_top_bar_compact(ui);
+                } else {
+                    self.render_top_bar_desktop(ui);
+                }
+            });
+        });
+    }
+
+    fn render_top_bar_compact(&mut self, ui: &mut egui::Ui) {
+        ui.menu_button("☰", |ui| {
+            let tools_btn = egui::Button::new(
+                egui::RichText::new(format!("{} Tools", egui_phosphor::regular::WRENCH)).size(12.0),
+            )
+            .selected(self.mode == AppMode::Tools);
+            if ui.add(tools_btn).clicked() {
+                self.mode = AppMode::Tools;
+                ui.close();
+            }
+
+            let notedown_btn = egui::Button::new(
+                egui::RichText::new(format!("{} Note Down", egui_phosphor::regular::NOTEBOOK))
+                    .size(12.0),
+            )
+            .selected(self.mode == AppMode::NoteDown);
+            if ui.add(notedown_btn).clicked() {
+                self.mode = AppMode::NoteDown;
+                ui.close();
+            }
+
+            ui.separator();
+            egui::widgets::global_theme_preference_buttons(ui);
+            ui.separator();
+
+            if ui
+                .button(
+                    egui::RichText::new(format!("{} About", egui_phosphor::regular::INFO))
+                        .size(12.0),
+                )
+                .clicked()
+            {
+                self.show_about = !self.show_about;
+                ui.close();
+            }
+        });
+    }
+
+    fn render_top_bar_desktop(&mut self, ui: &mut egui::Ui) {
+        let tools_btn = egui::Button::new(
+            egui::RichText::new(format!("{} Tools", egui_phosphor::regular::WRENCH)).size(12.0),
+        )
+        .selected(self.mode == AppMode::Tools);
+        if ui.add(tools_btn).clicked() {
+            self.mode = AppMode::Tools;
+        }
+
+        let notedown_btn = egui::Button::new(
+            egui::RichText::new(format!("{} Note Down", egui_phosphor::regular::NOTEBOOK))
+                .size(12.0),
+        )
+        .selected(self.mode == AppMode::NoteDown);
+        if ui.add(notedown_btn).clicked() {
+            self.mode = AppMode::NoteDown;
+        }
+
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            egui::widgets::global_theme_preference_buttons(ui);
+            ui.separator();
+            if ui
+                .button(
+                    egui::RichText::new(format!("{} About", egui_phosphor::regular::INFO))
+                        .size(12.0),
+                )
+                .clicked()
+            {
+                self.show_about = !self.show_about;
+            }
+        });
+    }
+
+    fn render_tools_mode(&mut self, ctx: &egui::Context, compact: bool) {
+        if compact {
+            let first_open_idx = self.tools.iter().position(|t| t.open);
+
+            egui::CentralPanel::default().show(ctx, |ui| {
+                if let Some(idx) = first_open_idx {
+                    if let Some(tool_state) = self.tools.get_mut(idx) {
+                        ui.horizontal(|ui| {
+                            if ui.button("← Back").clicked() {
+                                tool_state.open = false;
+                            }
+                            ui.separator();
+                            ui.label(
+                                egui::RichText::new(format!(
+                                    "{} {}",
+                                    tool_state.tool.icon_name(),
+                                    tool_state.tool.name()
+                                ))
+                                .strong(),
+                            );
+                        });
+                        ui.separator();
+                        tool_state.tool.show_narrow(ui);
+                    }
+                } else {
+                    self.render_dashboard(ui, true);
+                }
+            });
+        } else {
+            self.render_sidebar(ctx);
+
+            egui::CentralPanel::default().show(ctx, |ui| {
+                let central_rect = ui.available_rect_before_wrap();
+
+                let any_open = self.tools.iter().any(|t| t.open);
+                if !any_open {
+                    self.render_dashboard(ui, false);
+                }
+
+                for tool_state in &mut self.tools {
+                    if tool_state.open {
+                        tool_state
+                            .tool
+                            .show(ctx, &mut tool_state.open, central_rect);
+                    }
+                }
+            });
+        }
+    }
+
+    fn render_about(&mut self, ctx: &egui::Context) {
         if self.show_about {
             egui::Window::new(format!("{} About Personars", egui_phosphor::regular::INFO))
                 .open(&mut self.show_about)

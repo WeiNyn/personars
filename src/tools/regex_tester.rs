@@ -29,90 +29,95 @@ impl Tool for RegexTester {
             .resizable(true)
             .constrain_to(rect)
             .show(ctx, |ui| {
-                ui.vertical(|ui| {
-                    ui.label("Regex Pattern:");
-                    let response = ui.add(
-                        egui::TextEdit::singleline(&mut self.pattern)
-                            .hint_text("e.g. ^(foo|bar)$")
-                            .desired_width(f32::INFINITY)
-                            .font(egui::TextStyle::Monospace),
-                    );
+                self.render_content(ui);
+            });
+    }
 
-                    if response.changed() {
-                        self.compile();
-                    }
+    fn show_narrow(&mut self, ui: &mut egui::Ui) {
+        self.render_content(ui);
+    }
+}
 
-                    if let Some(err) = &self.error {
-                        ui.colored_label(Color32::RED, err);
-                    } else if self.compiled_regex.is_some() {
-                        ui.colored_label(Color32::GREEN, "Regex compiled successfully");
-                    }
+impl RegexTester {
+    fn render_content(&mut self, ui: &mut egui::Ui) {
+        ui.vertical(|ui| {
+            ui.label("Regex Pattern:");
+            let response = ui.add(
+                egui::TextEdit::singleline(&mut self.pattern)
+                    .hint_text("e.g. ^(foo|bar)$")
+                    .desired_width(f32::INFINITY)
+                    .font(egui::TextStyle::Monospace),
+            );
 
-                    ui.separator();
-                    ui.label("Test String:");
+            if response.changed() {
+                self.compile();
+            }
 
-                    let regex = self.compiled_regex.clone();
-                    let mut layouter =
-                        |ui: &egui::Ui, string: &dyn egui::TextBuffer, wrap_width: f32| {
-                            let mut layout_job = Self::highlight(ui, string.as_str(), &regex);
-                            layout_job.wrap.max_width = wrap_width;
-                            ui.painter().layout_job(layout_job)
-                        };
+            if let Some(err) = &self.error {
+                ui.colored_label(Color32::RED, err);
+            } else if self.compiled_regex.is_some() {
+                ui.colored_label(Color32::GREEN, "Regex compiled successfully");
+            }
 
-                    let response = ui.add(
-                        egui::TextEdit::multiline(&mut self.test_text)
-                            .hint_text("Type items here to test...")
-                            .desired_width(f32::INFINITY)
-                            .desired_rows(10)
-                            .layouter(&mut layouter),
-                    );
+            ui.separator();
+            ui.label("Test String:");
 
-                    let mut cursor_idx = None;
-                    if let Some(state) = egui::TextEdit::load_state(ui.ctx(), response.id) {
-                        if let Some(cursor_range) = state.cursor.char_range() {
-                            cursor_idx = Some(cursor_range.primary.index);
-                        }
-                    }
+            let regex = self.compiled_regex.clone();
+            let mut layouter = |ui: &egui::Ui, string: &dyn egui::TextBuffer, wrap_width: f32| {
+                let mut layout_job = Self::highlight(ui, string.as_str(), &regex);
+                layout_job.wrap.max_width = wrap_width;
+                ui.painter().layout_job(layout_job)
+            };
 
-                    if let Some(re) = &self.compiled_regex {
-                        let count = re.find_iter(&self.test_text).count();
-                        ui.label(format!("Found {count} matches"));
+            let response = ui.add(
+                egui::TextEdit::multiline(&mut self.test_text)
+                    .hint_text("Type items here to test...")
+                    .desired_width(f32::INFINITY)
+                    .desired_rows(10)
+                    .layouter(&mut layouter),
+            );
 
-                        ui.separator();
+            let mut cursor_idx = None;
+            if let Some(state) = egui::TextEdit::load_state(ui.ctx(), response.id) {
+                if let Some(cursor_range) = state.cursor.char_range() {
+                    cursor_idx = Some(cursor_range.primary.index);
+                }
+            }
 
-                        if let Some(idx) = cursor_idx {
-                            // Find match at cursor
-                            for cap in re.captures_iter(&self.test_text) {
-                                if let Some(m) = cap.get(0) {
-                                    // Check if cursor is roughly within this match or on the same line?
-                                    // User said "cursor on line that has matches", but "print matched group".
-                                    // Identifying if cursor is "at" the match is more precise.
-                                    // Let's verify if cursor index is within [start, end].
-                                    if idx >= m.start() && idx <= m.end() {
-                                        ui.label(egui::RichText::new("Match Details:").strong());
-                                        ui.label(format!("Full Match: {:?}", m.as_str()));
+            if let Some(re) = &self.compiled_regex {
+                let count = re.find_iter(&self.test_text).count();
+                ui.label(format!("Found {count} matches"));
 
-                                        for (i, grp) in cap.iter().enumerate().skip(1) {
-                                            if let Some(g) = grp {
-                                                ui.horizontal(|ui| {
-                                                    ui.label(format!("Group {i}: "));
-                                                    ui.label(
-                                                        egui::RichText::new(g.as_str())
-                                                            .color(Self::get_group_color(i)),
-                                                    );
-                                                });
-                                            }
-                                        }
-                                        break; // Stop after finding the first intersecting match
+                ui.separator();
+
+                if let Some(idx) = cursor_idx {
+                    // Find match at cursor
+                    for cap in re.captures_iter(&self.test_text) {
+                        if let Some(m) = cap.get(0) {
+                            if idx >= m.start() && idx <= m.end() {
+                                ui.label(egui::RichText::new("Match Details:").strong());
+                                ui.label(format!("Full Match: {:?}", m.as_str()));
+
+                                for (i, grp) in cap.iter().enumerate().skip(1) {
+                                    if let Some(g) = grp {
+                                        ui.horizontal(|ui| {
+                                            ui.label(format!("Group {i}: "));
+                                            ui.label(
+                                                egui::RichText::new(g.as_str())
+                                                    .color(Self::get_group_color(i)),
+                                            );
+                                        });
                                     }
                                 }
+                                break; // Stop after finding the first intersecting match
                             }
-                        } else {
-                            ui.label("Move cursor to a match to see details.");
                         }
                     }
-                });
-            });
+                } else {
+                    ui.label("Move cursor to a match to see details.");
+                }
+            }
+        });
     }
 }
 

@@ -30,42 +30,52 @@ impl Tool for HashGenerator {
             .resizable(true)
             .constrain_to(rect)
             .show(ctx, |ui| {
-                ui.vertical(|ui| {
-                    ui.horizontal(|ui| {
-                        ui.label("Hash Generator");
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            if ui.button("Clear").clicked() {
-                                self.input.clear();
-                                self.update_hashes();
-                            }
-                        });
-                    });
-                    ui.separator();
+                self.render_content(ui);
+            });
+    }
 
-                    ui.label("Input Text:");
-                    let response = ui.add(
-                        egui::TextEdit::multiline(&mut self.input)
-                            .hint_text("Type or paste text here to hash...")
-                            .desired_rows(4)
-                            .desired_width(f32::INFINITY),
-                    );
+    fn show_narrow(&mut self, ui: &mut egui::Ui) {
+        self.render_content(ui);
+    }
+}
 
-                    if response.changed() {
+impl HashGenerator {
+    fn render_content(&mut self, ui: &mut egui::Ui) {
+        ui.vertical(|ui| {
+            ui.horizontal(|ui| {
+                ui.label("Hash Generator");
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if ui.button("Clear").clicked() {
+                        self.input.clear();
                         self.update_hashes();
                     }
-
-                    ui.add_space(10.0);
-                    ui.separator();
-                    ui.add_space(5.0);
-
-                    egui::ScrollArea::vertical().show(ui, |ui| {
-                        Self::render_hash_row(ui, "MD5", &self.md5);
-                        Self::render_hash_row(ui, "SHA-1", &self.sha1);
-                        Self::render_hash_row(ui, "SHA-256", &self.sha256);
-                        Self::render_hash_row(ui, "SHA-512", &self.sha512);
-                    });
                 });
             });
+            ui.separator();
+
+            ui.label("Input Text:");
+            let response = ui.add(
+                egui::TextEdit::multiline(&mut self.input)
+                    .hint_text("Type or paste text here to hash...")
+                    .desired_rows(4)
+                    .desired_width(f32::INFINITY),
+            );
+
+            if response.changed() {
+                self.update_hashes();
+            }
+
+            ui.add_space(10.0);
+            ui.separator();
+            ui.add_space(5.0);
+
+            egui::ScrollArea::vertical().show(ui, |ui| {
+                Self::render_hash_row(ui, "MD5", &self.md5);
+                Self::render_hash_row(ui, "SHA-1", &self.sha1);
+                Self::render_hash_row(ui, "SHA-256", &self.sha256);
+                Self::render_hash_row(ui, "SHA-512", &self.sha512);
+            });
+        });
     }
 }
 

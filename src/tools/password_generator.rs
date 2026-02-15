@@ -42,61 +42,71 @@ impl Tool for PasswordGenerator {
             .resizable(true)
             .constrain_to(rect)
             .show(ctx, |ui| {
-                ui.vertical(|ui| {
-                    ui.horizontal(|ui| {
-                        ui.label("Password Generator");
-                    });
-                    ui.separator();
-
-                    ui.group(|ui| {
-                        ui.label("Configuration");
-
-                        ui.horizontal(|ui| {
-                            ui.label("Length:");
-                            ui.add(egui::Slider::new(&mut self.length, 4..=128));
-                        });
-
-                        ui.checkbox(&mut self.use_upper, "Uppercase (A-Z)");
-                        ui.checkbox(&mut self.use_lower, "Lowercase (a-z)");
-                        ui.checkbox(&mut self.use_numbers, "Numbers (0-9)");
-                        ui.checkbox(&mut self.use_symbols, "Symbols (!@#$...)");
-
-                        ui.add_space(5.0);
-
-                        let can_generate = self.use_upper
-                            || self.use_lower
-                            || self.use_numbers
-                            || self.use_symbols;
-
-                        if ui
-                            .add_enabled(can_generate, egui::Button::new("Generate"))
-                            .clicked()
-                        {
-                            self.generate();
-                        }
-                    });
-
-                    ui.add_space(10.0);
-                    ui.separator();
-                    ui.add_space(5.0);
-
-                    ui.horizontal(|ui| {
-                        ui.label("Result:");
-                        if ui.button("Copy").clicked() && !self.output.is_empty() {
-                            ui.output_mut(|o| {
-                                o.commands
-                                    .push(egui::OutputCommand::CopyText(self.output.clone()));
-                            });
-                        }
-                    });
-
-                    ui.add(
-                        egui::TextEdit::singleline(&mut self.output)
-                            .hint_text("Password will appear here...")
-                            .desired_width(f32::INFINITY),
-                    );
-                });
+                self.render_content(ui);
             });
+    }
+
+    fn show_narrow(&mut self, ui: &mut egui::Ui) {
+        egui::ScrollArea::vertical().show(ui, |ui| {
+            self.render_content(ui);
+        });
+    }
+}
+
+impl PasswordGenerator {
+    fn render_content(&mut self, ui: &mut egui::Ui) {
+        ui.vertical(|ui| {
+            ui.horizontal(|ui| {
+                ui.label("Password Generator");
+            });
+            ui.separator();
+
+            ui.group(|ui| {
+                ui.label("Configuration");
+
+                ui.horizontal(|ui| {
+                    ui.label("Length:");
+                    ui.add(egui::Slider::new(&mut self.length, 4..=128));
+                });
+
+                ui.checkbox(&mut self.use_upper, "Uppercase (A-Z)");
+                ui.checkbox(&mut self.use_lower, "Lowercase (a-z)");
+                ui.checkbox(&mut self.use_numbers, "Numbers (0-9)");
+                ui.checkbox(&mut self.use_symbols, "Symbols (!@#$...)");
+
+                ui.add_space(5.0);
+
+                let can_generate =
+                    self.use_upper || self.use_lower || self.use_numbers || self.use_symbols;
+
+                if ui
+                    .add_enabled(can_generate, egui::Button::new("Generate"))
+                    .clicked()
+                {
+                    self.generate();
+                }
+            });
+
+            ui.add_space(10.0);
+            ui.separator();
+            ui.add_space(5.0);
+
+            ui.horizontal(|ui| {
+                ui.label("Result:");
+                if ui.button("Copy").clicked() && !self.output.is_empty() {
+                    ui.output_mut(|o| {
+                        o.commands
+                            .push(egui::OutputCommand::CopyText(self.output.clone()));
+                    });
+                }
+            });
+
+            ui.add(
+                egui::TextEdit::singleline(&mut self.output)
+                    .hint_text("Password will appear here...")
+                    .desired_width(f32::INFINITY),
+            );
+        });
     }
 }
 

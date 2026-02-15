@@ -93,17 +93,28 @@ impl Tool for TodoList {
             .resizable(true)
             .constrain_to(rect)
             .show(ctx, |ui| {
-                ui.vertical(|ui| {
-                    ui.heading("Todo List");
-                    ui.separator();
-
-                    self.render_input_area(ui, ctx);
-                    ui.add_space(10.0);
-                    self.render_filters(ui);
-                    ui.separator();
-                    self.render_list(ui);
-                });
+                self.render_content(ui);
             });
+    }
+
+    fn show_narrow(&mut self, ui: &mut egui::Ui) {
+        self.render_content(ui);
+    }
+}
+
+impl TodoList {
+    fn render_content(&mut self, ui: &mut egui::Ui) {
+        let ctx = ui.ctx().clone();
+        ui.vertical(|ui| {
+            ui.heading("Todo List");
+            ui.separator();
+
+            self.render_input_area(ui, &ctx);
+            ui.add_space(10.0);
+            self.render_filters(ui);
+            ui.separator();
+            self.render_list(ui);
+        });
     }
 }
 

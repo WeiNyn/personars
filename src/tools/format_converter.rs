@@ -99,6 +99,20 @@ impl Tool for FormatConverter {
                 });
             });
     }
+
+    fn show_narrow(&mut self, ui: &mut egui::Ui) {
+        egui::ScrollArea::vertical().show(ui, |ui| {
+            self.render_header(ui);
+
+            let pane_width = ui.available_width();
+            let rows = 8; // Fixed compact row count
+
+            // Vertical stacking instead of horizontal
+            self.render_input_pane(ui, rows, pane_width, 200.0);
+            ui.add_space(8.0);
+            self.render_output_pane(ui, rows, pane_width, 200.0);
+        });
+    }
 }
 
 impl FormatConverter {
