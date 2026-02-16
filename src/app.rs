@@ -101,11 +101,20 @@ impl PersonarsApp {
         egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
         cc.egui_ctx.set_fonts(fonts);
 
-        if let Some(storage) = cc.storage {
+        #[cfg_attr(
+            not(target_arch = "wasm32"),
+            expect(unused_mut, reason = "mut needed on wasm32 for init_idb")
+        )]
+        let mut app: Self = if let Some(storage) = cc.storage {
             eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default()
         } else {
-            Default::default()
-        }
+            Self::default()
+        };
+
+        #[cfg(target_arch = "wasm32")]
+        app.finance_tracker.init_idb();
+
+        app
     }
 
     fn render_sidebar(&mut self, ctx: &egui::Context) {

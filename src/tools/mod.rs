@@ -14,6 +14,8 @@ pub mod epoch_converter;
 pub mod finance_tracker;
 pub mod format_converter;
 pub mod hash_generator;
+#[cfg(target_arch = "wasm32")]
+pub mod idb_storage;
 pub mod jwt_debugger;
 pub mod markdown_notes;
 pub mod password_generator;

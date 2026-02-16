@@ -53,6 +53,8 @@ env_logger = "0.11.8"
 getrandom = { version = "0.4", features = ["wasm_js"] }
 wasm-bindgen-futures = "0.4.50"
 web-sys = "0.3.70"              # to access the DOM (to hide the loading text)
+rexie = "0.6"
+serde-wasm-bindgen = "0.6"
 
 [profile.release]
 opt-level = 2 # fast and small wasm

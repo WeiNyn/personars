@@ -5,6 +5,9 @@ use egui_extras::{Size, StripBuilder};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+#[cfg(target_arch = "wasm32")]
+use std::sync::{Arc, Mutex};
+
 // ---------------------------------------------------------------------------
 // Data model
 // ---------------------------------------------------------------------------
@@ -52,7 +55,10 @@ enum NarrowTab {
 #[derive(Deserialize, Serialize)]
 #[serde(default)]
 pub struct FinanceTracker {
+    // On wasm32 these are stored in IndexedDB instead of eframe localStorage.
+    #[cfg_attr(target_arch = "wasm32", serde(skip))]
     accounts: Vec<Account>,
+    #[cfg_attr(target_arch = "wasm32", serde(skip))]
     transactions: Vec<Transaction>,
 
     // -- UI / input state (not persisted across restarts) --
@@ -72,6 +78,11 @@ pub struct FinanceTracker {
     narrow_tab: NarrowTab,
     #[serde(skip)]
     filter_account_idx: Option<usize>,
+
+    // -- wasm32-only: IndexedDB async state --
+    #[cfg(target_arch = "wasm32")]
+    #[serde(skip)]
+    idb_state: Arc<Mutex<IdbState>>,
 }
 
 impl Default for FinanceTracker {
@@ -103,6 +114,8 @@ impl Default for FinanceTracker {
             new_account_icon: "💰".to_owned(),
             narrow_tab: NarrowTab::default(),
             filter_account_idx: None,
+            #[cfg(target_arch = "wasm32")]
+            idb_state: Arc::new(Mutex::new(IdbState::default())),
         }
     }
 }
@@ -186,6 +199,9 @@ impl FinanceTracker {
         // Reset input fields
         self.input_amount.clear();
         self.input_description.clear();
+
+        #[cfg(target_arch = "wasm32")]
+        self.save_to_idb();
     }
 
     fn try_add_account(&mut self) {
@@ -205,6 +221,9 @@ impl FinanceTracker {
         });
         self.new_account_name.clear();
         self.new_account_icon = "💰".to_owned();
+
+        #[cfg(target_arch = "wasm32")]
+        self.save_to_idb();
     }
 }
 
@@ -215,6 +234,9 @@ impl FinanceTracker {
 impl FinanceTracker {
     /// 2-pane layout: accounts sidebar | main content.
     pub fn render_layout(&mut self, ui: &mut egui::Ui) {
+        #[cfg(target_arch = "wasm32")]
+        self.poll_idb();
+
         StripBuilder::new(ui)
             .size(Size::relative(0.22).at_least(120.0))
             .size(Size::exact(1.0))
@@ -306,6 +328,9 @@ impl FinanceTracker {
                 if self.input_account_idx >= self.accounts.len() && !self.accounts.is_empty() {
                     self.input_account_idx = self.accounts.len() - 1;
                 }
+
+                #[cfg(target_arch = "wasm32")]
+                self.save_to_idb();
             }
         });
     }
@@ -330,6 +355,9 @@ impl FinanceTracker {
 
 impl FinanceTracker {
     fn render_narrow(&mut self, ui: &mut egui::Ui) {
+        #[cfg(target_arch = "wasm32")]
+        self.poll_idb();
+
         ui.vertical(|ui| {
             self.render_net_total_banner(ui);
             ui.separator();
@@ -544,8 +572,99 @@ impl FinanceTracker {
         if let Some(idx) = delete_idx {
             if idx < self.transactions.len() {
                 self.transactions.remove(idx);
+
+                #[cfg(target_arch = "wasm32")]
+                self.save_to_idb();
             }
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// wasm32: IndexedDB async bridge
+// ---------------------------------------------------------------------------
+
+#[cfg(target_arch = "wasm32")]
+#[derive(Default)]
+struct IdbState {
+    /// Data loaded from `IndexedDB` (set once, consumed by `poll_idb`).
+    loaded: Option<(Vec<Account>, Vec<Transaction>)>,
+    /// Whether the initial load has been kicked off.
+    init_started: bool,
+}
+
+#[cfg(target_arch = "wasm32")]
+impl FinanceTracker {
+    /// Kick off async load from `IndexedDB`. Call once after construction.
+    pub fn init_idb(&mut self) {
+        let state = Arc::clone(&self.idb_state);
+
+        {
+            let mut s = state.lock().expect("lock poisoned");
+            if s.init_started {
+                return;
+            }
+            s.init_started = true;
+        }
+
+        wasm_bindgen_futures::spawn_local(async move {
+            let db = match super::idb_storage::open_db().await {
+                Ok(db) => db,
+                Err(e) => {
+                    log::error!("Failed to open IndexedDB: {e}");
+                    return;
+                }
+            };
+
+            let accounts: Vec<Account> = super::idb_storage::load_accounts(&db)
+                .await
+                .unwrap_or_default();
+            let transactions: Vec<Transaction> = super::idb_storage::load_transactions(&db)
+                .await
+                .unwrap_or_default();
+
+            if let Ok(mut s) = state.lock() {
+                s.loaded = Some((accounts, transactions));
+            }
+        });
+    }
+
+    /// Poll for completed async load and merge data into self.
+    fn poll_idb(&mut self) {
+        let loaded = {
+            let mut s = self.idb_state.lock().expect("lock poisoned");
+            s.loaded.take()
+        };
+        if let Some((accounts, transactions)) = loaded {
+            // Only apply if we got real data; otherwise keep defaults
+            if !accounts.is_empty() || !transactions.is_empty() {
+                self.accounts = accounts;
+                self.transactions = transactions;
+            }
+        }
+    }
+
+    /// Spawn an async task to persist current data to `IndexedDB`.
+    fn save_to_idb(&self) {
+        let accounts = self.accounts.clone();
+        let transactions = self.transactions.clone();
+
+        wasm_bindgen_futures::spawn_local(async move {
+            let db = match super::idb_storage::open_db().await {
+                Ok(db) => db,
+                Err(e) => {
+                    log::error!("Failed to open IndexedDB for save: {e}");
+                    return;
+                }
+            };
+
+            if let Err(e) = super::idb_storage::save_accounts(&db, &accounts).await {
+                log::error!("Failed to save accounts: {e}");
+            }
+            if let Err(e) = super::idb_storage::save_transactions(&db, &transactions).await {
+                log::error!("Failed to save transactions: {e}");
+            }
+        });
     }
 }
 
