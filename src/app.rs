@@ -1,3 +1,4 @@
+use crate::tools::finance_tracker::FinanceTracker;
 use crate::tools::markdown_notes::MarkdownNotes;
 use crate::tools::{Tool as _, ToolKind};
 
@@ -12,6 +13,7 @@ enum AppMode {
     #[default]
     Tools,
     NoteDown,
+    Finance,
 }
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
@@ -20,6 +22,7 @@ enum AppMode {
 pub struct PersonarsApp {
     tools: Vec<ToolState>,
     markdown_notes: MarkdownNotes,
+    finance_tracker: FinanceTracker,
     mode: AppMode,
     #[serde(skip)]
     show_about: bool,
@@ -32,6 +35,7 @@ impl Default for PersonarsApp {
         Self {
             tools: Self::create_tools(),
             markdown_notes: MarkdownNotes::default(),
+            finance_tracker: FinanceTracker::default(),
             mode: AppMode::default(),
             show_about: false,
             sidebar_open: false,
@@ -243,6 +247,15 @@ impl eframe::App for PersonarsApp {
                     }
                 });
             }
+            AppMode::Finance => {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    if compact {
+                        self.finance_tracker.show_narrow(ui);
+                    } else {
+                        self.finance_tracker.render_layout(ui);
+                    }
+                });
+            }
         }
 
         self.render_about(ctx);
@@ -286,6 +299,19 @@ impl PersonarsApp {
                 ui.close();
             }
 
+            let finance_btn = egui::Button::new(
+                egui::RichText::new(format!(
+                    "{} Finance",
+                    egui_phosphor::regular::CURRENCY_CIRCLE_DOLLAR
+                ))
+                .size(12.0),
+            )
+            .selected(self.mode == AppMode::Finance);
+            if ui.add(finance_btn).clicked() {
+                self.mode = AppMode::Finance;
+                ui.close();
+            }
+
             ui.separator();
             egui::widgets::global_theme_preference_buttons(ui);
             ui.separator();
@@ -319,6 +345,18 @@ impl PersonarsApp {
         .selected(self.mode == AppMode::NoteDown);
         if ui.add(notedown_btn).clicked() {
             self.mode = AppMode::NoteDown;
+        }
+
+        let finance_btn = egui::Button::new(
+            egui::RichText::new(format!(
+                "{} Finance",
+                egui_phosphor::regular::CURRENCY_CIRCLE_DOLLAR
+            ))
+            .size(12.0),
+        )
+        .selected(self.mode == AppMode::Finance);
+        if ui.add(finance_btn).clicked() {
+            self.mode = AppMode::Finance;
         }
 
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
