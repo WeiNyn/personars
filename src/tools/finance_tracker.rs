@@ -278,7 +278,10 @@ impl FinanceTracker {
                         .hint_text("Name"),
                 );
             });
-            if ui.button("＋ Add Account").clicked() {
+            if ui
+                .button(format!("{} Add Account", egui_phosphor::regular::PLUS))
+                .clicked()
+            {
                 self.try_add_account();
             }
             ui.separator();
@@ -421,12 +424,14 @@ impl FinanceTracker {
                 ui.selectable_value(
                     &mut self.input_type,
                     TransactionType::Receive,
-                    RichText::new("↓ Receive").color(Color32::from_rgb(46, 160, 67)),
+                    RichText::new(format!("{} Receive", egui_phosphor::regular::ARROW_DOWN))
+                        .color(Color32::from_rgb(46, 160, 67)),
                 );
                 ui.selectable_value(
                     &mut self.input_type,
                     TransactionType::Pay,
-                    RichText::new("↑ Pay").color(Color32::from_rgb(218, 54, 51)),
+                    RichText::new(format!("{} Pay", egui_phosphor::regular::ARROW_UP))
+                        .color(Color32::from_rgb(218, 54, 51)),
                 );
             });
 
@@ -465,7 +470,10 @@ impl FinanceTracker {
                         .hint_text("What for?"),
                 );
 
-                if ui.button("＋ Add").clicked() {
+                if ui
+                    .button(format!("{} Add", egui_phosphor::regular::PLUS))
+                    .clicked()
+                {
                     self.try_add_transaction();
                 }
             });
@@ -522,8 +530,14 @@ impl FinanceTracker {
 
                 for &(orig_idx, txn) in &display {
                     let (arrow, type_color) = match txn.transaction_type {
-                        TransactionType::Receive => ("↓", Color32::from_rgb(46, 160, 67)),
-                        TransactionType::Pay => ("↑", Color32::from_rgb(218, 54, 51)),
+                        TransactionType::Receive => (
+                            egui_phosphor::regular::ARROW_DOWN,
+                            Color32::from_rgb(46, 160, 67),
+                        ),
+                        TransactionType::Pay => (
+                            egui_phosphor::regular::ARROW_UP,
+                            Color32::from_rgb(218, 54, 51),
+                        ),
                     };
 
                     let sign = match txn.transaction_type {

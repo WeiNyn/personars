@@ -391,7 +391,10 @@ impl PersonarsApp {
                 if let Some(idx) = first_open_idx {
                     if let Some(tool_state) = self.tools.get_mut(idx) {
                         ui.horizontal(|ui| {
-                            if ui.button("← Back").clicked() {
+                            if ui
+                                .button(format!("{} Back", egui_phosphor::regular::ARROW_LEFT))
+                                .clicked()
+                            {
                                 tool_state.open = false;
                             }
                             ui.separator();
