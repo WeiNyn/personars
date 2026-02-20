@@ -114,6 +114,9 @@ impl PersonarsApp {
         #[cfg(target_arch = "wasm32")]
         app.finance_tracker.init_idb();
 
+        #[cfg(target_arch = "wasm32")]
+        app.markdown_notes.init_idb();
+
         app
     }
 
