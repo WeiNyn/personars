@@ -12,7 +12,7 @@ targets = ["x86_64-unknown-linux-gnu", "wasm32-unknown-unknown"]
 
 [dependencies]
 egui = "0.33.0"
-egui_extras = "0.33.0"
+egui_extras = { version = "0.33.0", features = ["datepicker", "serde"] }
 eframe = { version = "0.33.0", default-features = false, features = [
     "accesskit",     # Make egui compatible with screen readers. NOTE: adds a lot of dependencies.
     "default_fonts", # Embed the default egui fonts.

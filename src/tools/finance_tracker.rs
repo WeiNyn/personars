@@ -1,7 +1,7 @@
 use super::Tool;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Datelike as _, NaiveDate, Utc};
 use eframe::egui::{self, Color32, Layout, RichText};
-use egui_extras::{Size, StripBuilder};
+use egui_extras::{DatePickerButton, Size, StripBuilder};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -19,6 +19,78 @@ pub enum TransactionType {
     Pay,
 }
 
+#[derive(Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize)]
+pub enum Category {
+    #[default]
+    Other,
+    Meal,
+    Entertainment,
+    Work,
+    Relationship,
+    Rent,
+    Transport,
+    Shopping,
+    Health,
+    Education,
+    Savings,
+    Utilities,
+}
+
+impl Category {
+    const ALL: &[Self] = &[
+        Self::Other,
+        Self::Meal,
+        Self::Entertainment,
+        Self::Work,
+        Self::Relationship,
+        Self::Rent,
+        Self::Transport,
+        Self::Shopping,
+        Self::Health,
+        Self::Education,
+        Self::Savings,
+        Self::Utilities,
+    ];
+
+    fn icon(self) -> &'static str {
+        match self {
+            Self::Other => "📌",
+            Self::Meal => "🍔",
+            Self::Entertainment => "🎬",
+            Self::Work => "💼",
+            Self::Relationship => "💝",
+            Self::Rent => "🏠",
+            Self::Transport => "🚗",
+            Self::Shopping => "🛒",
+            Self::Health => "🏥",
+            Self::Education => "📚",
+            Self::Savings => "🏦",
+            Self::Utilities => "💡",
+        }
+    }
+
+    fn label(self) -> &'static str {
+        match self {
+            Self::Other => "Other",
+            Self::Meal => "Meal",
+            Self::Entertainment => "Entertainment",
+            Self::Work => "Work",
+            Self::Relationship => "Relationship",
+            Self::Rent => "Rent",
+            Self::Transport => "Transport",
+            Self::Shopping => "Shopping",
+            Self::Health => "Health",
+            Self::Education => "Education",
+            Self::Savings => "Savings",
+            Self::Utilities => "Utilities",
+        }
+    }
+
+    fn display(self) -> String {
+        format!("{} {}", self.icon(), self.label())
+    }
+}
+
 #[derive(Clone, Deserialize, Serialize)]
 struct Account {
     id: Uuid,
@@ -31,7 +103,8 @@ struct Transaction {
     id: Uuid,
     transaction_type: TransactionType,
     amount: f64,
-    description: String,
+    #[serde(default)]
+    category: Category,
     account_id: Uuid,
     #[serde(with = "chrono::serde::ts_seconds")]
     created_at: DateTime<Utc>,
@@ -67,9 +140,11 @@ pub struct FinanceTracker {
     #[serde(skip)]
     input_amount: String,
     #[serde(skip)]
-    input_description: String,
+    input_category: Category,
     #[serde(skip)]
     input_account_idx: usize,
+    #[serde(skip)]
+    input_date: NaiveDate,
     #[serde(skip)]
     new_account_name: String,
     #[serde(skip)]
@@ -78,6 +153,12 @@ pub struct FinanceTracker {
     narrow_tab: NarrowTab,
     #[serde(skip)]
     filter_account_idx: Option<usize>,
+    #[serde(skip)]
+    filter_category: Option<Category>,
+    #[serde(skip)]
+    filter_date_from: Option<NaiveDate>,
+    #[serde(skip)]
+    filter_date_to: Option<NaiveDate>,
 
     // -- wasm32-only: IndexedDB async state --
     #[cfg(target_arch = "wasm32")]
@@ -108,12 +189,16 @@ impl Default for FinanceTracker {
             transactions: Vec::new(),
             input_type: TransactionType::default(),
             input_amount: String::new(),
-            input_description: String::new(),
+            input_category: Category::default(),
             input_account_idx: 0,
+            input_date: Utc::now().date_naive(),
             new_account_name: String::new(),
             new_account_icon: "💰".to_owned(),
             narrow_tab: NarrowTab::default(),
             filter_account_idx: None,
+            filter_category: None,
+            filter_date_from: None,
+            filter_date_to: None,
             #[cfg(target_arch = "wasm32")]
             idb_state: Arc::new(Mutex::new(IdbState::default())),
         }
@@ -187,18 +272,25 @@ impl FinanceTracker {
             None => return,
         };
 
+        // Combine selected date with current time-of-day
+        let now = Utc::now();
+        let time = now.time();
+        let naive_dt = self.input_date.and_time(time);
+        let created_at = DateTime::<Utc>::from_naive_utc_and_offset(naive_dt, Utc);
+
         self.transactions.push(Transaction {
             id: Uuid::new_v4(),
             transaction_type: self.input_type,
             amount,
-            description: self.input_description.clone(),
+            category: self.input_category,
             account_id,
-            created_at: Utc::now(),
+            created_at,
         });
 
         // Reset input fields
         self.input_amount.clear();
-        self.input_description.clear();
+        self.input_category = Category::default();
+        self.input_date = now.date_naive();
 
         #[cfg(target_arch = "wasm32")]
         self.save_to_idb();
@@ -461,14 +553,16 @@ impl FinanceTracker {
                     });
             });
 
-            // Description
+            // Category + Add button
             ui.horizontal(|ui| {
-                ui.label("Desc:");
-                ui.add(
-                    egui::TextEdit::singleline(&mut self.input_description)
-                        .desired_width(ui.available_width() - 110.0)
-                        .hint_text("What for?"),
-                );
+                ui.label("Category:");
+                egui::ComboBox::from_id_salt("txn_category_combo")
+                    .selected_text(self.input_category.display())
+                    .show_ui(ui, |ui| {
+                        for &cat in Category::ALL {
+                            ui.selectable_value(&mut self.input_category, cat, cat.display());
+                        }
+                    });
 
                 if ui
                     .button(format!("{} Add", egui_phosphor::regular::PLUS))
@@ -477,13 +571,21 @@ impl FinanceTracker {
                     self.try_add_transaction();
                 }
             });
+
+            // Date picker row
+            ui.horizontal(|ui| {
+                ui.label("Date:");
+                ui.add(DatePickerButton::new(&mut self.input_date).id_salt("txn_date_picker"));
+                if ui.button("📅 Today").clicked() {
+                    self.input_date = Utc::now().date_naive();
+                }
+            });
         });
     }
 
-    fn render_transaction_list(&mut self, ui: &mut egui::Ui) {
-        // Optional account filter
+    fn render_transaction_filters(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
-            ui.label("Filter:");
+            ui.label("Account:");
             let filter_label = match self.filter_account_idx {
                 Some(i) => self
                     .accounts
@@ -500,13 +602,68 @@ impl FinanceTracker {
                         ui.selectable_value(&mut self.filter_account_idx, Some(i), label);
                     }
                 });
+
+            ui.label("Category:");
+            let cat_label = match self.filter_category {
+                Some(c) => c.display(),
+                None => "All".to_owned(),
+            };
+            egui::ComboBox::from_id_salt("txn_filter_cat_combo")
+                .selected_text(cat_label)
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(&mut self.filter_category, None, "All");
+                    for &cat in Category::ALL {
+                        ui.selectable_value(&mut self.filter_category, Some(cat), cat.display());
+                    }
+                });
         });
+
+        // Date range filter row
+        self.render_date_range_filter(ui);
+    }
+
+    fn render_date_range_filter(&mut self, ui: &mut egui::Ui) {
+        ui.horizontal(|ui| {
+            ui.label("From:");
+            let mut has_from = self.filter_date_from.is_some();
+            ui.checkbox(&mut has_from, "");
+            if has_from {
+                let date = self.filter_date_from.get_or_insert(Utc::now().date_naive());
+                ui.add(DatePickerButton::new(date).id_salt("filter_from_date"));
+            } else {
+                self.filter_date_from = None;
+            }
+
+            ui.label("To:");
+            let mut has_to = self.filter_date_to.is_some();
+            ui.checkbox(&mut has_to, "");
+            if has_to {
+                let date = self.filter_date_to.get_or_insert(Utc::now().date_naive());
+                ui.add(DatePickerButton::new(date).id_salt("filter_to_date"));
+            } else {
+                self.filter_date_to = None;
+            }
+
+            if (self.filter_date_from.is_some() || self.filter_date_to.is_some())
+                && ui.small_button("✕ Clear dates").clicked()
+            {
+                self.filter_date_from = None;
+                self.filter_date_to = None;
+            }
+        });
+    }
+
+    fn render_transaction_list(&mut self, ui: &mut egui::Ui) {
+        self.render_transaction_filters(ui);
 
         ui.add_space(4.0);
 
         let filter_account_id = self
             .filter_account_idx
             .and_then(|i| self.accounts.get(i).map(|a| a.id));
+        let filter_cat = self.filter_category;
+        let filter_from = self.filter_date_from;
+        let filter_to = self.filter_date_to;
 
         // Build filtered & sorted view (newest first)
         let mut display: Vec<(usize, &Transaction)> = self
@@ -514,6 +671,11 @@ impl FinanceTracker {
             .iter()
             .enumerate()
             .filter(|(_, t)| filter_account_id.is_none() || filter_account_id == Some(t.account_id))
+            .filter(|(_, t)| filter_cat.is_none() || filter_cat == Some(t.category))
+            .filter(|(_, t)| {
+                let d = t.created_at.date_naive();
+                filter_from.is_none_or(|from| d >= from) && filter_to.is_none_or(|to| d <= to)
+            })
             .collect();
         display.sort_by(|a, b| b.1.created_at.cmp(&a.1.created_at));
 
@@ -528,58 +690,21 @@ impl FinanceTracker {
                     );
                 }
 
+                let mut current_day: Option<NaiveDate> = None;
+
                 for &(orig_idx, txn) in &display {
-                    let (arrow, type_color) = match txn.transaction_type {
-                        TransactionType::Receive => (
-                            egui_phosphor::regular::ARROW_DOWN,
-                            Color32::from_rgb(46, 160, 67),
-                        ),
-                        TransactionType::Pay => (
-                            egui_phosphor::regular::ARROW_UP,
-                            Color32::from_rgb(218, 54, 51),
-                        ),
-                    };
+                    let txn_date = txn.created_at.date_naive();
 
-                    let sign = match txn.transaction_type {
-                        TransactionType::Receive => "+",
-                        TransactionType::Pay => "-",
-                    };
+                    // Day header
+                    if current_day != Some(txn_date) {
+                        current_day = Some(txn_date);
+                        if orig_idx != display.first().map_or(0, |f| f.0) {
+                            ui.add_space(4.0);
+                        }
+                        render_day_header(ui, txn_date);
+                    }
 
-                    let account_label = self
-                        .accounts
-                        .iter()
-                        .find(|a| a.id == txn.account_id)
-                        .map_or("?".to_owned(), |a| format!("{} {}", a.icon, a.name));
-
-                    let date_str = txn.created_at.format("%m-%d %H:%M").to_string();
-
-                    ui.horizontal(|ui| {
-                        ui.label(
-                            RichText::new(&date_str)
-                                .size(11.0)
-                                .color(ui.visuals().weak_text_color()),
-                        );
-                        ui.label(RichText::new(arrow).color(type_color).strong());
-                        ui.label(
-                            RichText::new(format!("{sign}${:.2}", txn.amount))
-                                .color(type_color)
-                                .strong(),
-                        );
-                        ui.label(&txn.description);
-                        ui.label(
-                            RichText::new(&account_label)
-                                .size(11.0)
-                                .color(ui.visuals().weak_text_color()),
-                        );
-
-                        ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
-                            if ui.small_button("🗑").on_hover_text("Delete").clicked() {
-                                delete_idx = Some(orig_idx);
-                            }
-                        });
-                    });
-
-                    ui.add_space(1.0);
+                    render_transaction_row(ui, txn, &self.accounts, &mut delete_idx, orig_idx);
                 }
             });
 
@@ -685,6 +810,80 @@ impl FinanceTracker {
 // ---------------------------------------------------------------------------
 // Utility
 // ---------------------------------------------------------------------------
+
+/// Render a day-group header: `📅 Feb 20, 2026 (Thu)`
+fn render_day_header(ui: &mut egui::Ui, date: NaiveDate) {
+    let weekday = date.weekday();
+    let label = format!("📅 {} ({weekday})", date.format("%b %d, %Y"),);
+
+    ui.add_space(2.0);
+    ui.horizontal(|ui| {
+        ui.separator();
+        ui.label(RichText::new(label).strong().size(12.0));
+        ui.separator();
+    });
+    ui.add_space(2.0);
+}
+
+/// Render one transaction row (time-only since date is in the header).
+fn render_transaction_row(
+    ui: &mut egui::Ui,
+    txn: &Transaction,
+    accounts: &[Account],
+    delete_idx: &mut Option<usize>,
+    orig_idx: usize,
+) {
+    let (arrow, type_color) = match txn.transaction_type {
+        TransactionType::Receive => (
+            egui_phosphor::regular::ARROW_DOWN,
+            Color32::from_rgb(46, 160, 67),
+        ),
+        TransactionType::Pay => (
+            egui_phosphor::regular::ARROW_UP,
+            Color32::from_rgb(218, 54, 51),
+        ),
+    };
+
+    let sign = match txn.transaction_type {
+        TransactionType::Receive => "+",
+        TransactionType::Pay => "-",
+    };
+
+    let account_label = accounts
+        .iter()
+        .find(|a| a.id == txn.account_id)
+        .map_or("?".to_owned(), |a| format!("{} {}", a.icon, a.name));
+
+    let time_str = txn.created_at.format("%H:%M").to_string();
+
+    ui.horizontal(|ui| {
+        ui.label(
+            RichText::new(&time_str)
+                .size(11.0)
+                .color(ui.visuals().weak_text_color()),
+        );
+        ui.label(RichText::new(arrow).color(type_color).strong());
+        ui.label(
+            RichText::new(format!("{sign}${:.2}", txn.amount))
+                .color(type_color)
+                .strong(),
+        );
+        ui.label(txn.category.display());
+        ui.label(
+            RichText::new(&account_label)
+                .size(11.0)
+                .color(ui.visuals().weak_text_color()),
+        );
+
+        ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
+            if ui.small_button("🗑").on_hover_text("Delete").clicked() {
+                *delete_idx = Some(orig_idx);
+            }
+        });
+    });
+
+    ui.add_space(1.0);
+}
 
 fn format_money(amount: f64) -> String {
     if amount >= 0.0 {
