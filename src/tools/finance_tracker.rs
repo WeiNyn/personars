@@ -1,4 +1,5 @@
 use super::Tool;
+use super::finance_stats::{self, StatsTimeMode};
 use chrono::{DateTime, Datelike as _, NaiveDate, Utc};
 use eframe::egui::{self, Color32, Layout, RichText};
 use egui_extras::{DatePickerButton, Size, StripBuilder};
@@ -69,7 +70,7 @@ impl Category {
         }
     }
 
-    fn label(self) -> &'static str {
+    pub fn label(self) -> &'static str {
         match self {
             Self::Other => "Other",
             Self::Meal => "Meal",
@@ -92,22 +93,22 @@ impl Category {
 }
 
 #[derive(Clone, Deserialize, Serialize)]
-struct Account {
-    id: Uuid,
-    name: String,
-    icon: String,
+pub struct Account {
+    pub id: Uuid,
+    pub name: String,
+    pub icon: String,
 }
 
 #[derive(Clone, Deserialize, Serialize)]
-struct Transaction {
-    id: Uuid,
-    transaction_type: TransactionType,
-    amount: f64,
+pub struct Transaction {
+    pub id: Uuid,
+    pub transaction_type: TransactionType,
+    pub amount: f64,
     #[serde(default)]
-    category: Category,
-    account_id: Uuid,
+    pub category: Category,
+    pub account_id: Uuid,
     #[serde(with = "chrono::serde::ts_seconds")]
-    created_at: DateTime<Utc>,
+    pub created_at: DateTime<Utc>,
 }
 
 // ---------------------------------------------------------------------------
@@ -119,6 +120,7 @@ enum NarrowTab {
     #[default]
     Accounts,
     Transactions,
+    Statistics,
 }
 
 // ---------------------------------------------------------------------------
@@ -159,6 +161,12 @@ pub struct FinanceTracker {
     filter_date_from: Option<NaiveDate>,
     #[serde(skip)]
     filter_date_to: Option<NaiveDate>,
+    #[serde(skip)]
+    stats_year: i32,
+    #[serde(skip)]
+    stats_month: u32,
+    #[serde(skip)]
+    stats_time_mode: StatsTimeMode,
 
     // -- wasm32-only: IndexedDB async state --
     #[cfg(target_arch = "wasm32")]
@@ -199,6 +207,9 @@ impl Default for FinanceTracker {
             filter_category: None,
             filter_date_from: None,
             filter_date_to: None,
+            stats_year: Utc::now().year(),
+            stats_month: Utc::now().month(),
+            stats_time_mode: StatsTimeMode::default(),
             #[cfg(target_arch = "wasm32")]
             idb_state: Arc::new(Mutex::new(IdbState::default())),
         }
@@ -440,6 +451,23 @@ impl FinanceTracker {
             ui.add_space(6.0);
             ui.separator();
             self.render_transaction_list(ui);
+
+            ui.add_space(8.0);
+            ui.separator();
+            ui.add_space(4.0);
+
+            egui::CollapsingHeader::new(RichText::new("📊 Statistics").strong().size(14.0))
+                .default_open(false)
+                .show(ui, |ui| {
+                    finance_stats::render_statistics_tab(
+                        ui,
+                        &self.accounts,
+                        &self.transactions,
+                        &mut self.stats_year,
+                        &mut self.stats_month,
+                        &mut self.stats_time_mode,
+                    );
+                });
         });
     }
 }
@@ -465,6 +493,7 @@ impl FinanceTracker {
                     NarrowTab::Transactions,
                     "📋 Transactions",
                 );
+                ui.selectable_value(&mut self.narrow_tab, NarrowTab::Statistics, "📊 Statistics");
             });
             ui.separator();
 
@@ -474,6 +503,16 @@ impl FinanceTracker {
                     self.render_add_transaction_form(ui);
                     ui.separator();
                     self.render_transaction_list(ui);
+                }
+                NarrowTab::Statistics => {
+                    finance_stats::render_statistics_tab(
+                        ui,
+                        &self.accounts,
+                        &self.transactions,
+                        &mut self.stats_year,
+                        &mut self.stats_month,
+                        &mut self.stats_time_mode,
+                    );
                 }
             }
         });

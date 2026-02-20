@@ -42,6 +42,7 @@ regex = "1.12.3"
 egui-phosphor = "0.11.0"
 qrcode = "0.14.1"
 similar = "2.4.0"
+egui_plot = "0.34.0"
 egui_commonmark = "0.22.0"
 
 # native:
